@@ -3,27 +3,31 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
   <title>Tennis Reaction Trainer</title>
-  <style>
-    html, body { margin: 0; height: 100%; }
-    body {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      background: #000; color: #fff;
-      font-family: -apple-system, system-ui, sans-serif; text-align: center;
-    }
-    h1 { font-size: 2.2rem; margin: 0 16px 12px; }
-    p { font-size: 1.1rem; margin: 4px 16px; color: #ccc; }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Tennis Reaction Trainer</h1>
-  <p>Hello! The secure address works.</p>
-  <p id="check"></p>
-  <p>Version 0.1</p>
-  <script>
-    // Step 1 check: wake lock needs a secure (https) address.
-    document.getElementById('check').textContent =
-      window.isSecureContext ? 'Secure (https): yes' : 'Secure (https): no';
-  </script>
+  <!-- Home screen: pick a mode and start -->
+  <main id="home" class="screen">
+    <h1>Tennis Reaction Trainer</h1>
+    <p class="mode-label">Mode: <strong>Return</strong></p>
+    <button id="start" class="big-button">Start</button>
+    <p id="load-status" class="note"></p>
+    <p class="note">No sound? Check the silent switch on the side of your iPhone and turn the volume up.</p>
+    <p class="version">Version 0.2</p>
+  </main>
+
+  <!-- Session screen: neutral / forehand / backhand / done -->
+  <section id="session" class="screen neutral" hidden>
+    <div id="status"></div>
+    <button id="end" class="end-button">End</button>
+    <svg id="arrow" viewBox="0 0 100 100" aria-hidden="true">
+      <polygon points="0,30 50,30 50,0 100,50 50,100 50,70 0,70" />
+    </svg>
+    <div id="message"></div>
+  </section>
+
+  <script src="app.js"></script>
 </body>
 </html>

@@ -1,0 +1,93 @@
+/* Colours are fully saturated so they stay readable in bright sunlight. */
+:root {
+  --forehand: #00c400;
+  --backhand: #e00000;
+  --neutral: #000000;
+  --text: #ffffff;
+}
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--neutral);
+  color: var(--text);
+  font-family: -apple-system, system-ui, sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+}
+
+.screen[hidden] { display: none; }
+
+/* ---------- Home ---------- */
+h1 { font-size: 2rem; margin: 0 0 16px; }
+.mode-label { font-size: 1.3rem; margin: 0 0 24px; }
+.note { font-size: 1rem; color: #bbb; max-width: 28rem; margin: 8px 0; }
+.version { font-size: 0.85rem; color: #777; margin-top: 24px; }
+
+.big-button {
+  width: min(80vw, 22rem);
+  height: 8rem;
+  font-size: 2.6rem;
+  font-weight: 800;
+  border: none;
+  border-radius: 1.5rem;
+  background: var(--forehand);
+  color: #000;
+}
+.big-button:active { transform: scale(0.97); }
+.big-button:disabled { opacity: 0.5; }
+
+/* ---------- Session ---------- */
+#session.neutral  { background: var(--neutral); }
+#session.forehand { background: var(--forehand); }
+#session.backhand { background: var(--backhand); }
+
+#status {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 16px);
+  left: 16px;
+  font-size: 1.2rem;
+  color: #aaa;
+}
+
+.end-button {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 8px);
+  right: 16px;
+  padding: 12px 22px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  border: 2px solid #888;
+  border-radius: 12px;
+  background: transparent;
+  color: #ccc;
+}
+
+/* The arrow fills most of the screen. It is only shown during a cue. */
+#arrow {
+  display: none;
+  width: 90vw;
+  max-height: 80vh;
+  fill: var(--text);
+}
+#session.forehand #arrow,
+#session.backhand #arrow { display: block; }
+#arrow.left { transform: scaleX(-1); }
+
+/* Hide the status and End button during a cue so nothing distracts. */
+#session.forehand #status, #session.backhand #status,
+#session.forehand .end-button, #session.backhand .end-button { visibility: hidden; }
+
+#message { font-size: 3rem; font-weight: 800; }
