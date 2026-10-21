@@ -5,7 +5,7 @@ const settings = {
   handedness: 'right',   // 'right' or 'left': flips which way the arrows point
   gapSeconds: 0.7,       // difficulty: time between the beep and the cue
   minWaitSeconds: 3,     // random wait before the beep
-  maxWaitSeconds: 7,
+  maxWaitSeconds: 5,
   cueSeconds: 1.5,       // how long the cue stays on screen
   backhandPercent: 50,   // forehand/backhand balance
   widePercent: 50,       // wide/body mix

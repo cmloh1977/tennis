@@ -53,7 +53,7 @@ Voice and visual must be in sync, so audio latency must be minimal:
 ## Each rep
 
 1. Neutral screen.
-2. Random wait (e.g. 3–7 s) so the rhythm can't be predicted.
+2. Random wait (3–5 s) so the rhythm can't be predicted.
 3. Short **beep** = split-step trigger.
 4. Short gap (set by difficulty), then the **cue** (colour + arrow + voice).
 
