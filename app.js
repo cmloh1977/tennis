@@ -1,24 +1,82 @@
 'use strict';
 
-// ---------- Settings (a settings screen comes in a later step) ----------
-const settings = {
-  handedness: 'right',   // 'right' or 'left': flips which way the arrows point
-  gapSeconds: 0.7,       // difficulty: time between the beep and the cue
-  volleyGapFactor: 0.6,  // Volley uses 60% of the gap (balls arrive faster at the net)
-  minWaitSeconds: 3,     // random wait before the beep
-  maxWaitSeconds: 5,
-  cueSeconds: 1.5,       // how long the cue stays on screen
-  rallyMinSeconds: 2,    // rally tempo: time from one rally cue to the next
-  rallyMaxSeconds: 3,
-  rallyMinShots: 2,      // the rally stops after a random number of shots,
-  rallyMaxShots: 8,      // counting the return
-  tickLeadSeconds: 0.5,  // the tick comes this long before each rally cue
-  stopSeconds: 2,        // how long the STOP screen shows
-  backhandPercent: 50,   // forehand/backhand balance
-  widePercent: 50,       // wide/body mix
+// ---------- Settings ----------
+// The values you can change on the Settings screen. They are saved on the
+// phone, so they are remembered next time.
+const DEFAULT_SETTINGS = {
+  handedness: 'right',     // 'right' or 'left': flips which way the arrows point
+  gapSeconds: 0.7,         // difficulty: time between the beep and the cue
+  rallyTempoSeconds: 2.5,  // average time from one rally cue to the next
+  backhandPercent: 50,     // forehand/backhand balance
+  widePercent: 50,         // wide/body mix
   repsPerSet: 10,
-  syncOffsetMs: 0,       // + shows the screen later, - plays the voice later
+  sets: 3,
+  restSeconds: 60,
+  syncOffsetMs: 0,         // + shows the screen later, - plays the voice later
 };
+
+// Fixed timings (not on the Settings screen).
+const TIMING = {
+  minWaitSeconds: 3,       // random wait before the beep
+  maxWaitSeconds: 5,
+  cueSeconds: 1.5,         // how long the cue stays on screen
+  volleyGapFactor: 0.6,    // Volley uses 60% of the gap (balls arrive faster at the net)
+  rallyTempoSpread: 0.5,   // each rally gap is the tempo ± this much, at random
+  rallyMinShots: 2,        // the rally stops after a random number of shots,
+  rallyMaxShots: 8,        // counting the return
+  tickLeadSeconds: 0.5,    // the tick comes this long before each rally cue
+  stopSeconds: 2,          // how long the STOP screen shows
+  restWarningSeconds: 3,   // beep this long before the next set starts
+};
+
+// How each slider on the Settings screen looks and what it changes.
+const SLIDERS = [
+  { key: 'gapSeconds', label: 'Difficulty', min: 0.3, max: 1.2, step: 0.05,
+    show: v => `${v.toFixed(2)} s from beep to cue`,
+    hint: 'Shorter = big first serve. Longer = second serve. Volley uses 60% of this.' },
+  { key: 'rallyTempoSeconds', label: 'Rally tempo', min: 1.5, max: 4, step: 0.25,
+    show: v => `about ${v.toFixed(2)} s between rally shots` },
+  { key: 'backhandPercent', label: 'Forehand / backhand', min: 0, max: 100, step: 10,
+    show: v => `${100 - v}% forehand · ${v}% backhand` },
+  { key: 'widePercent', label: 'Wide / body', min: 0, max: 100, step: 10,
+    show: v => `${v}% wide · ${100 - v}% body` },
+  { key: 'repsPerSet', label: 'Reps per set', min: 1, max: 30, step: 1,
+    show: v => `${v} reps` },
+  { key: 'sets', label: 'Sets', min: 1, max: 10, step: 1,
+    show: v => (v === 1 ? '1 set' : `${v} sets`) },
+  { key: 'restSeconds', label: 'Rest between sets', min: 10, max: 180, step: 10,
+    show: v => formatClock(v) },
+  { key: 'syncOffsetMs', label: 'Sound / screen sync', min: -150, max: 150, step: 10,
+    show: v => (v === 0 ? 'no adjustment'
+      : v > 0 ? `screen ${v} ms later` : `voice ${-v} ms later`),
+    hint: 'Only change this if the voice and the colour don’t arrive together.' },
+];
+
+const STORAGE_KEY = 'tennis-trainer-v1';
+const settings = { ...DEFAULT_SETTINGS };
+let mode = 'return';   // 'return', 'volley' or 'rally'
+
+function loadSaved() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    for (const key of Object.keys(DEFAULT_SETTINGS)) {
+      if (typeof saved.settings?.[key] === typeof DEFAULT_SETTINGS[key]) {
+        settings[key] = saved.settings[key];
+      }
+    }
+    if (['return', 'volley', 'rally'].includes(saved.mode)) mode = saved.mode;
+  } catch (err) {
+    console.warn('Could not read saved settings:', err);
+  }
+}
+
+function save() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ settings, mode }));
+  } catch (err) {
+    console.warn('Could not save settings:', err);
+  }
+}
 
 // Add ?fast=1 to the address to shrink all waits (for quick testing).
 const FAST = new URLSearchParams(location.search).has('fast');
@@ -26,6 +84,7 @@ const speed = FAST ? 0.25 : 1;
 
 // ---------- Screen elements ----------
 const homeScreen = document.getElementById('home');
+const settingsScreen = document.getElementById('settings-screen');
 const sessionScreen = document.getElementById('session');
 const startButton = document.getElementById('start');
 const endButton = document.getElementById('end');
@@ -97,6 +156,12 @@ document.addEventListener('visibilitychange', () => {
 function randomBetween(min, max) { return min + Math.random() * (max - min); }
 function randomWhole(min, max) { return Math.floor(randomBetween(min, max + 1)); }
 
+function formatClock(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 function pickShot() {
   return {
     side: Math.random() * 100 < settings.backhandPercent ? 'backhand' : 'forehand',
@@ -133,7 +198,6 @@ function showCue(shot) {
 // ---------- Running a session ----------
 // currentRun is replaced each time Start is pressed; End marks it stopped.
 let currentRun = null;
-let mode = 'return';   // 'return', 'volley' or 'rally'
 
 function wait(seconds) {
   return new Promise(resolve => setTimeout(resolve, seconds * 1000 * speed));
@@ -147,7 +211,7 @@ function waitExactly(seconds) {
 // Neutral screen, random wait, beep, gap, cue. Used by all three modes.
 async function serveRep(run, gapSeconds) {
   showScreen('neutral');
-  await wait(randomBetween(settings.minWaitSeconds, settings.maxWaitSeconds));
+  await wait(randomBetween(TIMING.minWaitSeconds, TIMING.maxWaitSeconds));
   if (run.stopped) return;
 
   beep();                              // split-step trigger
@@ -159,42 +223,56 @@ async function serveRep(run, gapSeconds) {
 
 async function returnRep(run) {
   await serveRep(run, settings.gapSeconds);
-  await wait(settings.cueSeconds);
+  await wait(TIMING.cueSeconds);
 }
 
 async function volleyRep(run) {
-  await serveRep(run, settings.gapSeconds * settings.volleyGapFactor);
-  await wait(settings.cueSeconds);
+  await serveRep(run, settings.gapSeconds * TIMING.volleyGapFactor);
+  await wait(TIMING.cueSeconds);
 }
 
 // The return, then a new cue every few seconds (each after a tick), until the
 // rally stops at a random shot with a white STOP screen.
 async function rallyRep(run) {
-  const totalShots = randomWhole(settings.rallyMinShots, settings.rallyMaxShots);
+  const totalShots = randomWhole(TIMING.rallyMinShots, TIMING.rallyMaxShots);
   await serveRep(run, settings.gapSeconds);
 
   for (let shot = 2; shot <= totalShots; shot++) {
-    const interval = randomBetween(settings.rallyMinSeconds, settings.rallyMaxSeconds);
+    const interval = randomBetween(settings.rallyTempoSeconds - TIMING.rallyTempoSpread,
+                                   settings.rallyTempoSeconds + TIMING.rallyTempoSpread);
     // Go back to neutral between cues, so two cues in a row on the same side
     // still look like two separate cues.
-    const cueOnScreen = Math.min(settings.cueSeconds, interval - settings.tickLeadSeconds - 0.3);
+    const cueOnScreen = Math.min(TIMING.cueSeconds, interval - TIMING.tickLeadSeconds - 0.3);
     await waitExactly(cueOnScreen);
     if (run.stopped) return;
     showScreen('neutral');
 
-    await waitExactly(interval - cueOnScreen - settings.tickLeadSeconds);
+    await waitExactly(interval - cueOnScreen - TIMING.tickLeadSeconds);
     if (run.stopped) return;
     tick();
-    await waitExactly(settings.tickLeadSeconds);
+    await waitExactly(TIMING.tickLeadSeconds);
     if (run.stopped) return;
     showCue(pickShot());
   }
 
-  await waitExactly(Math.min(settings.cueSeconds, settings.rallyMinSeconds));
+  await waitExactly(Math.min(TIMING.cueSeconds, settings.rallyTempoSeconds - TIMING.rallyTempoSpread));
   if (run.stopped) return;
   messageText.textContent = 'STOP';
   showScreen('stop');
-  await wait(settings.stopSeconds);
+  await wait(TIMING.stopSeconds);
+  messageText.textContent = '';
+}
+
+// A big countdown between sets, with a beep just before the next set starts.
+async function rest(run, nextSet) {
+  showScreen('rest');
+  statusText.textContent = `Rest · next: set ${nextSet}/${settings.sets}`;
+  for (let left = settings.restSeconds; left > 0; left--) {
+    messageText.textContent = formatClock(left);
+    if (left === TIMING.restWarningSeconds) beep();
+    await wait(1);
+    if (run.stopped) return;
+  }
   messageText.textContent = '';
 }
 
@@ -206,10 +284,16 @@ async function runSession() {
   messageText.textContent = '';
   const doRep = repForMode[mode];
 
-  for (let rep = 1; rep <= settings.repsPerSet; rep++) {
-    statusText.textContent = `Rep ${rep} / ${settings.repsPerSet}`;
-    await doRep(run);
-    if (run.stopped) return;
+  for (let set = 1; set <= settings.sets; set++) {
+    for (let rep = 1; rep <= settings.repsPerSet; rep++) {
+      statusText.textContent = `Set ${set}/${settings.sets} · Rep ${rep}/${settings.repsPerSet}`;
+      await doRep(run);
+      if (run.stopped) return;
+    }
+    if (set < settings.sets) {
+      await rest(run, set + 1);
+      if (run.stopped) return;
+    }
   }
 
   showScreen('neutral');
@@ -252,11 +336,88 @@ startButton.addEventListener('click', async () => {
 
 endButton.addEventListener('click', endSession);
 
-for (const button of document.querySelectorAll('.mode-button')) {
+// ---------- Home screen: mode buttons ----------
+const modeButtons = document.querySelectorAll('.mode-button');
+
+function showMode() {
+  for (const button of modeButtons) {
+    button.classList.toggle('selected', button.dataset.mode === mode);
+  }
+}
+
+for (const button of modeButtons) {
   button.addEventListener('click', () => {
     mode = button.dataset.mode;
-    for (const other of document.querySelectorAll('.mode-button')) {
-      other.classList.toggle('selected', other === button);
-    }
+    showMode();
+    save();
   });
 }
+
+// ---------- Settings screen ----------
+const handButtons = document.querySelectorAll('.hand-button');
+const sliderInputs = {};
+
+function showHandedness() {
+  for (const button of handButtons) {
+    button.classList.toggle('selected', button.dataset.hand === settings.handedness);
+  }
+}
+
+for (const button of handButtons) {
+  button.addEventListener('click', () => {
+    settings.handedness = button.dataset.hand;
+    showHandedness();
+    save();
+  });
+}
+
+// Build one labelled slider per entry in SLIDERS.
+for (const slider of SLIDERS) {
+  const row = document.createElement('label');
+  row.className = 'setting';
+  row.innerHTML = `
+    <span class="setting-label">${slider.label}</span>
+    <span class="setting-value"></span>
+    <input type="range" min="${slider.min}" max="${slider.max}" step="${slider.step}">
+    ${slider.hint ? `<span class="setting-hint">${slider.hint}</span>` : ''}`;
+  const input = row.querySelector('input');
+  const value = row.querySelector('.setting-value');
+
+  input.addEventListener('input', () => {
+    settings[slider.key] = Number(input.value);
+    value.textContent = slider.show(settings[slider.key]);
+    save();
+  });
+  sliderInputs[slider.key] = { input, value, slider };
+  document.getElementById('sliders').append(row);
+}
+
+function showSettings() {
+  showHandedness();
+  for (const { input, value, slider } of Object.values(sliderInputs)) {
+    input.value = settings[slider.key];
+    value.textContent = slider.show(settings[slider.key]);
+  }
+}
+
+document.getElementById('open-settings').addEventListener('click', () => {
+  showSettings();
+  homeScreen.hidden = true;
+  settingsScreen.hidden = false;
+  settingsScreen.scrollTop = 0;
+});
+
+document.getElementById('close-settings').addEventListener('click', () => {
+  settingsScreen.hidden = true;
+  homeScreen.hidden = false;
+});
+
+document.getElementById('reset-settings').addEventListener('click', () => {
+  Object.assign(settings, DEFAULT_SETTINGS);
+  save();
+  showSettings();
+});
+
+// ---------- Start-up ----------
+loadSaved();
+showMode();

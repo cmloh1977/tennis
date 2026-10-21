@@ -18,11 +18,29 @@
     </div>
     <button id="start" class="big-button">Start</button>
     <p id="load-status" class="note"></p>
+    <button id="open-settings" class="plain-button">Settings</button>
     <p class="note">No sound? Check the silent switch on the side of your iPhone and turn the volume up.</p>
-    <p class="version">Version 0.3</p>
+    <p class="version">Version 0.4</p>
   </main>
 
-  <!-- Session screen: neutral / forehand / backhand / stop -->
+  <!-- Settings screen: the sliders are added by app.js -->
+  <section id="settings-screen" class="screen settings" hidden>
+    <div class="settings-header">
+      <h2>Settings</h2>
+      <button id="close-settings" class="plain-button">Done</button>
+    </div>
+    <div class="setting">
+      <span class="setting-label">Handedness</span>
+      <div class="choice">
+        <button class="hand-button" data-hand="right">Right</button>
+        <button class="hand-button" data-hand="left">Left</button>
+      </div>
+    </div>
+    <div id="sliders"></div>
+    <button id="reset-settings" class="plain-button reset">Reset to defaults</button>
+  </section>
+
+  <!-- Session screen: neutral / forehand / backhand / stop / rest -->
   <section id="session" class="screen neutral" hidden>
     <div id="status"></div>
     <button id="end" class="end-button">End</button>

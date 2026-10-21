@@ -69,8 +69,9 @@ Voice and visual must be in sync, so audio latency must be minimal:
 - **Rally tempo**: time between rally cues.
 - **Forehand/backhand balance**: e.g. 70% backhand to drill a weak side.
 - **Wide/body mix**.
-- **Reps per set** and **rest time between sets**.
+- **Reps per set**, **number of sets** and **rest time between sets** (big countdown, beep 3 s before the next set).
 - **Handedness**: right (default) or left.
+- **Sound/screen sync** fine-tune (−150 to +150 ms), for speakers that add delay.
 
 Settings should be remembered between visits (e.g. `localStorage`).
 
