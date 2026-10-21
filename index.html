@@ -4,6 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#000000">
+  <!-- Home-screen app: name, icon, full-screen -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Tennis">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <title>Tennis Reaction Trainer</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -19,8 +26,17 @@
     <button id="start" class="big-button">Start</button>
     <p id="load-status" class="note"></p>
     <button id="open-settings" class="plain-button">Settings</button>
-    <p class="note">No sound? Check the silent switch on the side of your iPhone and turn the volume up.</p>
-    <p class="version">Version 0.4</p>
+    <details class="tips">
+      <summary>iPhone tips</summary>
+      <ul>
+        <li><strong>No sound?</strong> Check the silent switch on the side of your iPhone (it may mute the app) and turn the volume up.</li>
+        <li><strong>Add to Home Screen</strong> for a full-screen app that works offline: tap Share (in Chrome, the share icon in the address bar), then “Add to Home Screen”.</li>
+        <li><strong>Screen turning off?</strong> The app keeps it awake during a session. If it still turns off, set Settings → Display &amp; Brightness → Auto-Lock to a longer time.</li>
+        <li><strong>Sunlight:</strong> turn screen brightness all the way up.</li>
+      </ul>
+      <p id="awake-method"></p>
+    </details>
+    <p class="version">Version 1.0</p>
   </main>
 
   <!-- Settings screen: the sliders are added by app.js -->

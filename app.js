@@ -132,19 +132,47 @@ function beep() { playTone(1000, 0.12); }
 function tick() { playTone(2000, 0.04); }
 
 // ---------- Keep the screen awake ----------
+// First choice: the browser's "wake lock" feature. Backup, for browsers
+// without it: a tiny silent video playing on a muted loop, which also stops
+// the phone from dimming the screen.
 let wakeLock = null;
+let backupVideo = null;
+const awakeMethodText = document.getElementById('awake-method');
 
 async function keepAwake() {
   try {
-    if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
+    if (!('wakeLock' in navigator)) throw new Error('wake lock not supported');
+    wakeLock = await navigator.wakeLock.request('screen');
+    awakeMethodText.textContent = 'Screen kept awake by: wake lock';
   } catch (err) {
-    console.warn('Wake lock not available:', err);
+    console.warn('Wake lock not available, using backup video:', err);
+    startBackupVideo();
   }
+}
+
+function startBackupVideo() {
+  if (!backupVideo) {
+    backupVideo = document.createElement('video');
+    backupVideo.src = 'media/keepawake.mp4';
+    backupVideo.muted = true;
+    backupVideo.loop = true;
+    backupVideo.playsInline = true;
+    backupVideo.setAttribute('playsinline', '');
+    backupVideo.className = 'keepawake-video';
+    document.body.append(backupVideo);
+  }
+  backupVideo.play()
+    .then(() => { awakeMethodText.textContent = 'Screen kept awake by: backup video'; })
+    .catch(err => {
+      awakeMethodText.textContent = 'Screen could not be kept awake. Set Auto-Lock to Never.';
+      console.warn('Backup video could not play:', err);
+    });
 }
 
 function allowSleep() {
   if (wakeLock) wakeLock.release();
   wakeLock = null;
+  if (backupVideo) backupVideo.pause();
 }
 
 // The wake lock is dropped when the app is hidden, so ask again on return.
@@ -316,6 +344,8 @@ function endSession() {
 // iPhones only allow sound after a tap, so sound is switched on here.
 startButton.addEventListener('click', async () => {
   startButton.disabled = true;
+  // Ask to keep the screen awake straight away, while the tap still counts.
+  keepAwake();
   loadStatus.textContent = 'Loading sounds…';
   try {
     await setUpAudio();
@@ -324,11 +354,11 @@ startButton.addEventListener('click', async () => {
     loadStatus.textContent = 'Could not load sounds. Check your connection and try again.';
     console.error(err);
     audio = null;
+    allowSleep();
     startButton.disabled = false;
     return;
   }
   startButton.disabled = false;
-  keepAwake();
   homeScreen.hidden = true;
   sessionScreen.hidden = false;
   runSession();
@@ -421,3 +451,8 @@ document.getElementById('reset-settings').addEventListener('click', () => {
 // ---------- Start-up ----------
 loadSaved();
 showMode();
+
+// Save the app's files on the phone so it also works with no signal.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(err => console.warn('Offline mode not available:', err));
+}

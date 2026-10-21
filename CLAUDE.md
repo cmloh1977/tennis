@@ -17,7 +17,12 @@ A web app for shadow-swing practice. It gives random cues so the player reacts i
 - Will be hosted on **GitHub Pages**, so it must be purely static files with relative paths (no server code, no build step).
 - **Plain HTML, CSS and JavaScript only.** No frameworks, no npm packages, no bundlers.
 
-Suggested file layout (keep it this small unless there's a good reason):
+When changing the app:
+- Bump the version number at the bottom of the home screen (`index.html`) so the user can tell which version their phone has.
+- Any new file the app needs must be added to the `FILES` list in `sw.js`, or it won't work offline.
+- `sw.js` serves the saved copy first and updates in the background, so a new version shows on the second open after publishing.
+
+File layout (keep it this small unless there's a good reason):
 
 ```
 index.html        page structure
@@ -25,8 +30,10 @@ style.css         styling
 app.js            all app logic
 manifest.json     PWA manifest
 sw.js             service worker (offline caching)
-audio/            pre-recorded sounds (beep, tick, "wide", "body")
+audio/            pre-recorded voice clips ("wide", "body"); beep and tick are generated tones
+media/            keepawake.mp4 (backup for keeping the screen on)
 icons/            home-screen icons
+tools/            scripts that rebuild the audio, icons and video
 ```
 
 ## Cues
