@@ -4,9 +4,16 @@
 const settings = {
   handedness: 'right',   // 'right' or 'left': flips which way the arrows point
   gapSeconds: 0.7,       // difficulty: time between the beep and the cue
+  volleyGapFactor: 0.6,  // Volley uses 60% of the gap (balls arrive faster at the net)
   minWaitSeconds: 3,     // random wait before the beep
   maxWaitSeconds: 5,
   cueSeconds: 1.5,       // how long the cue stays on screen
+  rallyMinSeconds: 2,    // rally tempo: time from one rally cue to the next
+  rallyMaxSeconds: 3,
+  rallyMinShots: 2,      // the rally stops after a random number of shots,
+  rallyMaxShots: 8,      // counting the return
+  tickLeadSeconds: 0.5,  // the tick comes this long before each rally cue
+  stopSeconds: 2,        // how long the STOP screen shows
   backhandPercent: 50,   // forehand/backhand balance
   widePercent: 50,       // wide/body mix
   repsPerSet: 10,
@@ -63,6 +70,7 @@ function playTone(frequency, seconds) {
 }
 
 function beep() { playTone(1000, 0.12); }
+function tick() { playTone(2000, 0.04); }
 
 // ---------- Keep the screen awake ----------
 let wakeLock = null;
@@ -87,6 +95,7 @@ document.addEventListener('visibilitychange', () => {
 
 // ---------- Cues ----------
 function randomBetween(min, max) { return min + Math.random() * (max - min); }
+function randomWhole(min, max) { return Math.floor(randomBetween(min, max + 1)); }
 
 function pickShot() {
   return {
@@ -124,33 +133,82 @@ function showCue(shot) {
 // ---------- Running a session ----------
 // currentRun is replaced each time Start is pressed; End marks it stopped.
 let currentRun = null;
+let mode = 'return';   // 'return', 'volley' or 'rally'
 
 function wait(seconds) {
   return new Promise(resolve => setTimeout(resolve, seconds * 1000 * speed));
 }
 
-async function returnRep(run) {
+// Reaction gaps are the drill itself, so they are never shortened by ?fast=1.
+function waitExactly(seconds) {
+  return new Promise(resolve => setTimeout(resolve, seconds * 1000));
+}
+
+// Neutral screen, random wait, beep, gap, cue. Used by all three modes.
+async function serveRep(run, gapSeconds) {
   showScreen('neutral');
   await wait(randomBetween(settings.minWaitSeconds, settings.maxWaitSeconds));
   if (run.stopped) return;
 
   beep();                              // split-step trigger
-  // The gap is the drill itself, so it is never shortened by ?fast=1.
-  await new Promise(resolve => setTimeout(resolve, settings.gapSeconds * 1000));
+  await waitExactly(gapSeconds);
   if (run.stopped) return;
 
   showCue(pickShot());
+}
+
+async function returnRep(run) {
+  await serveRep(run, settings.gapSeconds);
   await wait(settings.cueSeconds);
 }
+
+async function volleyRep(run) {
+  await serveRep(run, settings.gapSeconds * settings.volleyGapFactor);
+  await wait(settings.cueSeconds);
+}
+
+// The return, then a new cue every few seconds (each after a tick), until the
+// rally stops at a random shot with a white STOP screen.
+async function rallyRep(run) {
+  const totalShots = randomWhole(settings.rallyMinShots, settings.rallyMaxShots);
+  await serveRep(run, settings.gapSeconds);
+
+  for (let shot = 2; shot <= totalShots; shot++) {
+    const interval = randomBetween(settings.rallyMinSeconds, settings.rallyMaxSeconds);
+    // Go back to neutral between cues, so two cues in a row on the same side
+    // still look like two separate cues.
+    const cueOnScreen = Math.min(settings.cueSeconds, interval - settings.tickLeadSeconds - 0.3);
+    await waitExactly(cueOnScreen);
+    if (run.stopped) return;
+    showScreen('neutral');
+
+    await waitExactly(interval - cueOnScreen - settings.tickLeadSeconds);
+    if (run.stopped) return;
+    tick();
+    await waitExactly(settings.tickLeadSeconds);
+    if (run.stopped) return;
+    showCue(pickShot());
+  }
+
+  await waitExactly(Math.min(settings.cueSeconds, settings.rallyMinSeconds));
+  if (run.stopped) return;
+  messageText.textContent = 'STOP';
+  showScreen('stop');
+  await wait(settings.stopSeconds);
+  messageText.textContent = '';
+}
+
+const repForMode = { return: returnRep, volley: volleyRep, rally: rallyRep };
 
 async function runSession() {
   const run = { stopped: false };
   currentRun = run;
   messageText.textContent = '';
+  const doRep = repForMode[mode];
 
   for (let rep = 1; rep <= settings.repsPerSet; rep++) {
     statusText.textContent = `Rep ${rep} / ${settings.repsPerSet}`;
-    await returnRep(run);
+    await doRep(run);
     if (run.stopped) return;
   }
 
@@ -193,3 +251,12 @@ startButton.addEventListener('click', async () => {
 });
 
 endButton.addEventListener('click', endSession);
+
+for (const button of document.querySelectorAll('.mode-button')) {
+  button.addEventListener('click', () => {
+    mode = button.dataset.mode;
+    for (const other of document.querySelectorAll('.mode-button')) {
+      other.classList.toggle('selected', other === button);
+    }
+  });
+}

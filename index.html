@@ -11,14 +11,18 @@
   <!-- Home screen: pick a mode and start -->
   <main id="home" class="screen">
     <h1>Tennis Reaction Trainer</h1>
-    <p class="mode-label">Mode: <strong>Return</strong></p>
+    <div id="modes" class="modes">
+      <button class="mode-button selected" data-mode="return">Return</button>
+      <button class="mode-button" data-mode="volley">Volley</button>
+      <button class="mode-button" data-mode="rally">Return + Rally</button>
+    </div>
     <button id="start" class="big-button">Start</button>
     <p id="load-status" class="note"></p>
     <p class="note">No sound? Check the silent switch on the side of your iPhone and turn the volume up.</p>
-    <p class="version">Version 0.2.1</p>
+    <p class="version">Version 0.3</p>
   </main>
 
-  <!-- Session screen: neutral / forehand / backhand / done -->
+  <!-- Session screen: neutral / forehand / backhand / stop -->
   <section id="session" class="screen neutral" hidden>
     <div id="status"></div>
     <button id="end" class="end-button">End</button>
