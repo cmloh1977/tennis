@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.4 — 2026-10-22
+
+### White frame with each cue (follow-up to [Issue #3](https://github.com/cmloh1977/tennis/issues/3))
+- A thick white frame now appears around the edge of the screen together with the triangles, so the cue stands out more from the black waiting screen. The waiting screen stays pure black.
+- The triangles are a little narrower on a phone held upright (about 7%), so a black gap separates them from the frame.
+
 ## v1.3 — 2026-10-22
 
 ### Black screen with a white arrow for all cues ([Issue #3](https://github.com/cmloh1977/tennis/issues/3))

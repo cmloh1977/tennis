@@ -2,7 +2,7 @@
 
 A web app for shadow-swing practice. It gives random cues so the player reacts instead of planning the next stroke. Used outdoors on a rooftop, with an iPhone or iPad placed a few metres in front of the player.
 
-Current version: **1.3** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
+Current version: **1.4** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
 
 ## Working style (important)
 
@@ -51,14 +51,14 @@ docs/             notes for the user (not used by the app)
 
 ## Cues
 
-All parts of a cue (triangles appearing, voice) fire at **the same instant**.
+All parts of a cue (triangles + white frame appearing, voice) fire at **the same instant**.
 
 | Shot     | Screen | Direction (right-handed) |
 |----------|--------|--------------------------|
-| Forehand | black, white triangles | triangles pointing right |
-| Backhand | black, white triangles | triangles pointing left  |
+| Forehand | black, white triangles, white frame | triangles pointing right |
+| Backhand | black, white triangles, white frame | triangles pointing left  |
 
-Since v1.3 cues have no background colour (Issue #3): the triangles appearing on the black screen is the signal. Green and red are kept free for v2 pass/fail screens.
+Since v1.3 cues have no background colour (Issue #3): the triangles appearing on the black screen is the signal. Since v1.4 a thick white frame (inset `box-shadow`, 4vmin) appears around the screen edge with every cue, so the change is easier to catch in sunlight. Green and red are kept free for v2 pass/fail screens.
 
 | Placement | Sign (fast-forward style) | Voice |
 |-----------|---------------------------|-------|

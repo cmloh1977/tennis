@@ -178,6 +178,10 @@ input[type="range"]::-webkit-slider-thumb {
 #session.backhand { background: var(--neutral); }
 #session.stop     { background: #ffffff; color: #000; }
 
+/* A thick white frame appears with each cue, so the change from the black
+   waiting screen is easy to catch, even in sunlight. */
+#session.forehand, #session.backhand { box-shadow: inset 0 0 0 4vmin var(--text); }
+
 /* End of a rally: a white screen with a huge "STOP". */
 #session.stop #message { font-size: 28vw; }
 #session.stop #status { visibility: hidden; }
@@ -209,7 +213,7 @@ input[type="range"]::-webkit-slider-thumb {
 /* The arrow fills most of the screen. It is only shown during a cue. */
 #arrow {
   display: none;
-  width: 90vw;
+  width: calc(100vw - 16vmin);   /* leaves a black gap inside the 4vmin cue frame */
   max-height: 80vh;
   fill: var(--text);
 }
