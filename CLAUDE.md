@@ -65,7 +65,7 @@ Since v1.3 cues have no background colour (Issue #3): the triangles appearing on
 | Wide      | two triangles in a row ▶︎▶︎ | "wide" |
 | Body      | one triangle ▶︎, centred    | "body" |
 
-- The triangles are solid white SVG shapes (`#arrow` / `#arrow-shape` in `index.html`; `.body-shape` and `.wide-shape`, switched by the `wide` class). **Body and wide use exactly the same triangle shape and size** (the user asked for this); the wide sign fills the screen width, so each triangle is slim (46 × 100 in a 100 × 100 frame).
+- The triangles are solid white SVG shapes (`#arrow` / `#arrow-shape` in `index.html`; `.body-shape` and `.wide-shape`, switched by the `wide` class). **Body and wide use exactly the same triangle shape and size** (the user asked for this); the wide sign fills the screen width minus a black gap inside the white frame (`#arrow` width `calc(100vw - 16vmin)`), so each triangle is slim (46 × 100 in a 100 × 100 frame).
 - A voice says **"wide"** or **"body"** at the same moment the screen changes. In `app.js` this is the shot's `placement`. The **Voice** setting (default On) can turn the voice off, leaving triangles only; beep and tick still play.
 - **Handedness** setting (default: right-handed). Left-handed flips the directions.
 - **Short / deep** (optional, off by default, visual only): the sign tilts 45°. Short = up (move forward), deep = down (move back): forehand ↗ / ↘, backhand ↖ / ↙. Left-handed swaps left/right only. In `app.js` this is the shot's `length` (`null` when off); `ARROW_TILT` rotates the `#arrow-shape` group and switches to a `viewBox` fitted tightly around the tilted wide sign (body uses the same frame so both stay the same size).
