@@ -36,7 +36,7 @@
       </ul>
       <p id="awake-method"></p>
     </details>
-    <p class="version">Version 1.0</p>
+    <p class="version">Version 1.1</p>
   </main>
 
   <!-- Settings screen: the sliders are added by app.js -->
@@ -52,6 +52,15 @@
         <button class="hand-button" data-hand="left">Left</button>
       </div>
     </div>
+    <!-- Moved by app.js to sit just above the Short / deep slider -->
+    <div id="short-deep-toggle" class="setting">
+      <span class="setting-label">Short / deep cues</span>
+      <span class="setting-hint">Tilts the arrow up (short ball, move forward) or down (deep ball, move back).</span>
+      <div class="choice">
+        <button class="short-deep-button" data-on="false">Off</button>
+        <button class="short-deep-button" data-on="true">On</button>
+      </div>
+    </div>
     <div id="sliders"></div>
     <button id="reset-settings" class="plain-button reset">Reset to defaults</button>
   </section>
@@ -61,7 +70,9 @@
     <div id="status"></div>
     <button id="end" class="end-button">End</button>
     <svg id="arrow" viewBox="0 0 100 100" aria-hidden="true">
-      <polygon points="0,30 50,30 50,0 100,50 50,100 50,70 0,70" />
+      <g id="arrow-shape">
+        <polygon points="0,30 50,30 50,0 100,50 50,100 50,70 0,70" />
+      </g>
     </svg>
     <div id="message"></div>
   </section>

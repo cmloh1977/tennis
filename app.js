@@ -9,6 +9,8 @@ const DEFAULT_SETTINGS = {
   rallyTempoSeconds: 2.5,  // average time from one rally cue to the next
   backhandPercent: 50,     // forehand/backhand balance
   widePercent: 50,         // wide/body mix
+  shortDeep: false,        // tilt the arrow up (short) or down (deep)
+  deepPercent: 50,         // short/deep mix (only used when shortDeep is on)
   repsPerSet: 10,
   sets: 3,
   restSeconds: 60,
@@ -40,6 +42,8 @@ const SLIDERS = [
     show: v => `${100 - v}% forehand · ${v}% backhand` },
   { key: 'widePercent', label: 'Wide / body', min: 0, max: 100, step: 10,
     show: v => `${v}% wide · ${100 - v}% body` },
+  { key: 'deepPercent', label: 'Short / deep', min: 0, max: 100, step: 10,
+    show: v => `${100 - v}% short · ${v}% deep` },
   { key: 'repsPerSet', label: 'Reps per set', min: 1, max: 30, step: 1,
     show: v => `${v} reps` },
   { key: 'sets', label: 'Sets', min: 1, max: 10, step: 1,
@@ -91,6 +95,7 @@ const endButton = document.getElementById('end');
 const statusText = document.getElementById('status');
 const messageText = document.getElementById('message');
 const arrow = document.getElementById('arrow');
+const arrowShape = document.getElementById('arrow-shape');
 const loadStatus = document.getElementById('load-status');
 
 // ---------- Sound ----------
@@ -193,9 +198,20 @@ function formatClock(seconds) {
 function pickShot() {
   return {
     side: Math.random() * 100 < settings.backhandPercent ? 'backhand' : 'forehand',
-    depth: Math.random() * 100 < settings.widePercent ? 'wide' : 'body',
+    placement: Math.random() * 100 < settings.widePercent ? 'wide' : 'body',
+    // null = flat arrow (short/deep switched off)
+    length: !settings.shortDeep ? null
+      : Math.random() * 100 < settings.deepPercent ? 'deep' : 'short',
   };
 }
+
+// How the arrow is tilted for each length. The frame (viewBox) fits tightly
+// around the tilted arrow, so it is drawn as big as the flat one, or bigger.
+const ARROW_TILT = {
+  flat:  { rotate: 0,   viewBox: '0 0 100 100' },
+  short: { rotate: -45, viewBox: '0.5 14.6 84.9 84.9' },  // points up (move forward)
+  deep:  { rotate: 45,  viewBox: '0.5 0.5 84.9 84.9' },   // points down (move back)
+};
 
 function showScreen(name) {
   sessionScreen.className = 'screen ' + name;
@@ -210,12 +226,15 @@ function showCue(shot) {
   const screenDelayMs = speakerDelayMs + settings.syncOffsetMs;
 
   const voice = audio.createBufferSource();
-  voice.buffer = voices[shot.depth];
+  voice.buffer = voices[shot.placement];
   voice.connect(audio.destination);
   // If the screen should come first (negative offset), delay the voice instead.
   voice.start(audio.currentTime + Math.max(0, -screenDelayMs) / 1000);
 
+  const tilt = ARROW_TILT[shot.length || 'flat'];
   const paint = () => {
+    arrow.setAttribute('viewBox', tilt.viewBox);
+    arrowShape.setAttribute('transform', `rotate(${tilt.rotate} 50 50)`);
     arrow.classList.toggle('left', !pointsRight);
     showScreen(shot.side);
   };
@@ -418,12 +437,34 @@ for (const slider of SLIDERS) {
     value.textContent = slider.show(settings[slider.key]);
     save();
   });
-  sliderInputs[slider.key] = { input, value, slider };
+  sliderInputs[slider.key] = { input, value, slider, row };
   document.getElementById('sliders').append(row);
+}
+
+// Short / deep on/off, placed just above its slider. The slider is hidden
+// while it's off.
+const shortDeepButtons = document.querySelectorAll('.short-deep-button');
+const deepSliderRow = sliderInputs.deepPercent.row;
+deepSliderRow.before(document.getElementById('short-deep-toggle'));
+
+function showShortDeep() {
+  for (const button of shortDeepButtons) {
+    button.classList.toggle('selected', button.dataset.on === String(settings.shortDeep));
+  }
+  deepSliderRow.hidden = !settings.shortDeep;
+}
+
+for (const button of shortDeepButtons) {
+  button.addEventListener('click', () => {
+    settings.shortDeep = button.dataset.on === 'true';
+    showShortDeep();
+    save();
+  });
 }
 
 function showSettings() {
   showHandedness();
+  showShortDeep();
   for (const { input, value, slider } of Object.values(sliderInputs)) {
     input.value = settings[slider.key];
     value.textContent = slider.show(settings[slider.key]);

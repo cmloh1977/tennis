@@ -2,7 +2,7 @@
 
 A web app for shadow-swing practice. It gives random cues so the player reacts instead of planning the next stroke. Used outdoors on a rooftop, with an iPhone or iPad placed a few metres in front of the player.
 
-Current version: **1.0** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
+Current version: **1.1** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
 
 ## Working style (important)
 
@@ -59,8 +59,9 @@ All parts of a cue (colour, arrow, voice) fire at **the same instant**.
 | Backhand | full-screen red (`#e00000`)   | big arrow pointing left  |
 
 - The arrow is a chunky white SVG filling most of the screen (chosen so it reads from a few metres away with the phone upright).
-- A voice says **"wide"** or **"body"** at the same moment the screen changes.
+- A voice says **"wide"** or **"body"** at the same moment the screen changes. In `app.js` this is the shot's `placement`.
 - **Handedness** setting (default: right-handed). Left-handed flips the arrow directions; colours stay the same (forehand is always green).
+- **Short / deep** (optional, off by default, visual only): the arrow tilts 45°. Short = up (move forward), deep = down (move back): forehand ↗ / ↘, backhand ↖ / ↙. Left-handed swaps left/right only. In `app.js` this is the shot's `length` (`null` when off); `ARROW_TILT` rotates the `#arrow-shape` group and switches to a `viewBox` fitted tightly around the tilted arrow, so it is drawn as wide as the flat one.
 - Must be readable in **bright sunlight**: highly saturated colours, a huge arrow, high contrast. No subtle greys or thin lines.
 - The neutral screen is black. The status text ("Set 1/3 · Rep 4/10", top left) and the End button (top right) are hidden during cues.
 
@@ -98,6 +99,8 @@ The last-used mode is remembered.
 | Rally tempo | 1.5 – 4 s | 2.5 s |
 | Forehand / backhand | 0 – 100% backhand | 50% |
 | Wide / body | 0 – 100% wide | 50% |
+| Short / deep cues (switch) | Off / On | Off |
+| Short / deep (shown only when On) | 0 – 100% deep | 50% |
 | Reps per set | 1 – 30 | 10 |
 | Sets | 1 – 10 | 3 |
 | Rest between sets | 10 s – 3 min | 1 min |
@@ -121,4 +124,5 @@ The last-used mode is remembered.
 - Before publishing, check changes on the Mac in the built-in browser using the local server (`.claude/launch.json`, http://localhost:8000). Add **`?fast=1`** to the address to shorten the waits (reaction gaps stay real).
 - Because of the service worker, reload twice locally to see changes.
 - If a feature (e.g. keeping the screen awake) works in one browser but not the other, say so and suggest a fallback.
-- The phone can also open the Mac's local server over Wi-Fi (http://192.168.1.17:8000), but keep-awake and offline mode only work on the https GitHub Pages address.
+- The phone can also open the Mac's local server over Wi-Fi at `http://<Mac's address>:8000`, but keep-awake and offline mode only work on the https GitHub Pages address. The Mac's address changes with the network (it has been 192.168.1.17 and 10.63.233.146), so look it up with `ipconfig getifaddr en0` each time. On the Mac itself, use http://localhost:8000.
+- Cue choices are purely random each rep (the user chose this over "shuffled deck" balancing), so a single set can come out lopsided.

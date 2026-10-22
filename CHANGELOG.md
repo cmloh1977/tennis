@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.1 — 2026-10-22
+
+### Short / deep cues ([Issue #1](https://github.com/cmloh1977/tennis/issues/1))
+- New **Short / deep cues** switch in Settings (default Off). When On, the arrow tilts up for a short ball (move forward) or down for a deep ball (move back): forehand ↗ / ↘, backhand ↖ / ↙.
+- New **Short / deep** slider (0–100% deep, default 50%), shown only when the switch is On.
+- Works in all modes. The voice still says only "wide" or "body". Left-handed swaps left and right; up and down stay the same.
+- The tilted arrow is drawn as wide as the flat one, so it still reads from a few metres away.
+- With the switch Off, cues look exactly like v1.0.
+
 ## v1.0 — 2026-10-21
 
 First full version, live at https://cmloh1977.github.io/tennis/.

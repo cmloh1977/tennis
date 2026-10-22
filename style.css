@@ -130,12 +130,13 @@ h1 { font-size: 2rem; margin: 0 0 16px; }
 .settings-header .plain-button { margin: 0; background: #fff; color: #000; border-color: #fff; }
 
 .setting { display: block; padding: 16px 0; border-bottom: 1px solid #333; }
+.setting[hidden] { display: none; }
 .setting-label { display: block; font-size: 1.15rem; font-weight: 700; }
 .setting-value { display: block; font-size: 1.15rem; color: #6f6; margin: 4px 0 8px; }
 .setting-hint { display: block; font-size: 0.95rem; color: #999; margin-top: 6px; }
 
 .choice { display: flex; gap: 10px; margin-top: 10px; }
-.hand-button {
+.choice button {
   flex: 1;
   height: 3.2rem;
   font-size: 1.1rem;
@@ -145,7 +146,7 @@ h1 { font-size: 2rem; margin: 0 0 16px; }
   background: transparent;
   color: #ccc;
 }
-.hand-button.selected { background: #fff; color: #000; border-color: #fff; }
+.choice button.selected { background: #fff; color: #000; border-color: #fff; }
 
 /* Big, easy-to-grab sliders */
 input[type="range"] {
