@@ -1,7 +1,6 @@
-/* Colours are fully saturated so they stay readable in bright sunlight. */
+/* Cues are pure white on black: the highest contrast, readable in bright sunlight. */
 :root {
-  --forehand: #00c400;
-  --backhand: #e00000;
+  --forehand: #00c400;     /* Start button only; cues no longer use colour */
   --neutral: #000000;
   --text: #ffffff;
 }
@@ -175,8 +174,8 @@ input[type="range"]::-webkit-slider-thumb {
 
 /* ---------- Session ---------- */
 #session.neutral  { background: var(--neutral); }
-#session.forehand { background: var(--forehand); }
-#session.backhand { background: var(--backhand); }
+#session.forehand { background: var(--neutral); }
+#session.backhand { background: var(--neutral); }
 #session.stop     { background: #ffffff; color: #000; }
 
 /* End of a rally: a white screen with a huge "STOP". */

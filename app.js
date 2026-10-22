@@ -54,7 +54,7 @@ const SLIDERS = [
   { key: 'syncOffsetMs', label: 'Sound / screen sync', min: -150, max: 150, step: 10,
     show: v => (v === 0 ? 'no adjustment'
       : v > 0 ? `screen ${v} ms later` : `voice ${-v} ms later`),
-    hint: 'Only change this if the voice and the colour don’t arrive together.' },
+    hint: 'Only change this if the voice and the triangles don’t arrive together.' },
 ];
 
 const STORAGE_KEY = 'tennis-trainer-v1';
@@ -220,7 +220,7 @@ function showScreen(name) {
   sessionScreen.className = 'screen ' + name;
 }
 
-// Shows the colour + arrow and plays the voice so they arrive together.
+// Shows the arrow and plays the voice so they arrive together.
 // The phone may report a delay before sound reaches the speaker; if so, the
 // screen change is held back by that amount. syncOffsetMs fine-tunes it.
 // With the voice off the screen is still held back, because the beep reaches

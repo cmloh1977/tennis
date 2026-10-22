@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3 — 2026-10-22
+
+### Black screen with a white arrow for all cues ([Issue #3](https://github.com/cmloh1977/tennis/issues/3))
+- Forehand and backhand cues are now a **black screen with white triangles**; the direction of the triangles shows the side. No more green / red backgrounds.
+- Triangles, wide / body, short / deep tilt, handedness, voice and timing are unchanged.
+- Green and red are now free for the v2 pass / fail screens.
+
 ## v1.2 — 2026-10-22
 
 ### Wide / body on screen, and a Voice switch ([Issue #2](https://github.com/cmloh1977/tennis/issues/2))

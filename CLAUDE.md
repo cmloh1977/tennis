@@ -2,7 +2,7 @@
 
 A web app for shadow-swing practice. It gives random cues so the player reacts instead of planning the next stroke. Used outdoors on a rooftop, with an iPhone or iPad placed a few metres in front of the player.
 
-Current version: **1.2** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
+Current version: **1.3** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
 
 ## Working style (important)
 
@@ -51,12 +51,14 @@ docs/             notes for the user (not used by the app)
 
 ## Cues
 
-All parts of a cue (colour, triangles, voice) fire at **the same instant**.
+All parts of a cue (triangles appearing, voice) fire at **the same instant**.
 
-| Shot     | Screen colour     | Direction (right-handed) |
-|----------|-------------------|--------------------------|
-| Forehand | full-screen green (`#00c400`) | triangles pointing right |
-| Backhand | full-screen red (`#e00000`)   | triangles pointing left  |
+| Shot     | Screen | Direction (right-handed) |
+|----------|--------|--------------------------|
+| Forehand | black, white triangles | triangles pointing right |
+| Backhand | black, white triangles | triangles pointing left  |
+
+Since v1.3 cues have no background colour (Issue #3): the triangles appearing on the black screen is the signal. Green and red are kept free for v2 pass/fail screens.
 
 | Placement | Sign (fast-forward style) | Voice |
 |-----------|---------------------------|-------|
@@ -65,9 +67,9 @@ All parts of a cue (colour, triangles, voice) fire at **the same instant**.
 
 - The triangles are solid white SVG shapes (`#arrow` / `#arrow-shape` in `index.html`; `.body-shape` and `.wide-shape`, switched by the `wide` class). **Body and wide use exactly the same triangle shape and size** (the user asked for this); the wide sign fills the screen width, so each triangle is slim (46 × 100 in a 100 × 100 frame).
 - A voice says **"wide"** or **"body"** at the same moment the screen changes. In `app.js` this is the shot's `placement`. The **Voice** setting (default On) can turn the voice off, leaving triangles only; beep and tick still play.
-- **Handedness** setting (default: right-handed). Left-handed flips the directions; colours stay the same (forehand is always green).
+- **Handedness** setting (default: right-handed). Left-handed flips the directions.
 - **Short / deep** (optional, off by default, visual only): the sign tilts 45°. Short = up (move forward), deep = down (move back): forehand ↗ / ↘, backhand ↖ / ↙. Left-handed swaps left/right only. In `app.js` this is the shot's `length` (`null` when off); `ARROW_TILT` rotates the `#arrow-shape` group and switches to a `viewBox` fitted tightly around the tilted wide sign (body uses the same frame so both stay the same size).
-- Must be readable in **bright sunlight**: highly saturated colours, huge shapes, high contrast. No subtle greys or thin lines.
+- Must be readable in **bright sunlight**: pure white on black, huge shapes, high contrast. No subtle greys or thin lines.
 - The neutral screen is black. The status text ("Set 1/3 · Rep 4/10", top left) and the End button (top right) are hidden during cues.
 
 ### Audio sync (key technical requirement)
@@ -85,7 +87,7 @@ Voice and visual must be in sync, so audio latency must be minimal:
 1. Neutral (black) screen.
 2. Random wait (**3–5 s**, the user found 3–7 s too long) so the rhythm can't be predicted.
 3. Short **beep** = split-step trigger.
-4. Gap (set by difficulty), then the **cue** (colour + triangles + voice), shown for 1.5 s.
+4. Gap (set by difficulty), then the **cue** (triangles + voice), shown for 1.5 s.
 
 ## Modes
 
