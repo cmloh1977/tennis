@@ -37,6 +37,7 @@ audio/            pre-recorded voice clips ("wide", "body"); beep and tick are g
 media/            keepawake.mp4 (backup for keeping the screen on)
 icons/            home-screen icons (tennis ball on black)
 tools/            scripts that rebuild the audio, icons and video
+docs/             notes for the user (not used by the app)
 .claude/launch.json   local test server (python3 -m http.server 8000)
 ```
 
