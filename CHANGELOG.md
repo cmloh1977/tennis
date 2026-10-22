@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.2 — 2026-10-22
+
+### Wide / body on screen, and a Voice switch ([Issue #2](https://github.com/cmloh1977/tennis/issues/2))
+- The arrow is replaced by fast-forward style triangles: **two triangles (▶︎▶︎) = wide**, **one triangle (▶︎) = body**. Body and wide use exactly the same triangle shape and size.
+- Colours are unchanged (forehand green, backhand red). Left-handed still swaps left and right.
+- Short / deep still works: the triangles tilt up (short) or down (deep).
+- New **Voice ("wide" / "body")** switch in Settings (default On). Off = triangles only, no voice; the beep and tick still play. Saved on the phone and restored by "Reset to defaults".
+- With Voice off, the gap from beep to cue stays exactly as set.
+
 ## v1.1 — 2026-10-22
 
 ### Short / deep cues ([Issue #1](https://github.com/cmloh1977/tennis/issues/1))

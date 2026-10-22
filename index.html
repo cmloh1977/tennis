@@ -36,7 +36,7 @@
       </ul>
       <p id="awake-method"></p>
     </details>
-    <p class="version">Version 1.1</p>
+    <p class="version">Version 1.2</p>
   </main>
 
   <!-- Settings screen: the sliders are added by app.js -->
@@ -52,10 +52,19 @@
         <button class="hand-button" data-hand="left">Left</button>
       </div>
     </div>
+    <!-- Moved by app.js to sit just above the Wide / body slider -->
+    <div id="voice-toggle" class="setting">
+      <span class="setting-label">Voice (“wide” / “body”)</span>
+      <span class="setting-hint">Off = watch the triangles only. The beep and tick still play.</span>
+      <div class="choice">
+        <button class="voice-button" data-on="false">Off</button>
+        <button class="voice-button" data-on="true">On</button>
+      </div>
+    </div>
     <!-- Moved by app.js to sit just above the Short / deep slider -->
     <div id="short-deep-toggle" class="setting">
       <span class="setting-label">Short / deep cues</span>
-      <span class="setting-hint">Tilts the arrow up (short ball, move forward) or down (deep ball, move back).</span>
+      <span class="setting-hint">Tilts the sign up (short ball, move forward) or down (deep ball, move back).</span>
       <div class="choice">
         <button class="short-deep-button" data-on="false">Off</button>
         <button class="short-deep-button" data-on="true">On</button>
@@ -70,8 +79,14 @@
     <div id="status"></div>
     <button id="end" class="end-button">End</button>
     <svg id="arrow" viewBox="0 0 100 100" aria-hidden="true">
+      <!-- Body = one triangle, wide = two of the same triangle (like
+           fast-forward). app.js shows one. -->
       <g id="arrow-shape">
-        <polygon points="0,30 50,30 50,0 100,50 50,100 50,70 0,70" />
+        <polygon class="body-shape" points="27,0 73,50 27,100" />
+        <g class="wide-shape">
+          <polygon points="0,0 46,50 0,100" />
+          <polygon points="54,0 100,50 54,100" />
+        </g>
       </g>
     </svg>
     <div id="message"></div>

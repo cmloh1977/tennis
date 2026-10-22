@@ -217,6 +217,9 @@ input[type="range"]::-webkit-slider-thumb {
 #session.forehand #arrow,
 #session.backhand #arrow { display: block; }
 #arrow.left { transform: scaleX(-1); }
+/* One triangle for body, two for wide. */
+#arrow .wide-shape, #arrow.wide .body-shape { display: none; }
+#arrow.wide .wide-shape { display: inline; }
 
 /* Hide the status and End button during a cue so nothing distracts. */
 #session.forehand #status, #session.backhand #status,

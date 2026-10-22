@@ -9,6 +9,7 @@ const DEFAULT_SETTINGS = {
   rallyTempoSeconds: 2.5,  // average time from one rally cue to the next
   backhandPercent: 50,     // forehand/backhand balance
   widePercent: 50,         // wide/body mix
+  voice: true,             // say "wide" / "body" (off = triangles only)
   shortDeep: false,        // tilt the arrow up (short) or down (deep)
   deepPercent: 50,         // short/deep mix (only used when shortDeep is on)
   repsPerSet: 10,
@@ -205,12 +206,14 @@ function pickShot() {
   };
 }
 
-// How the arrow is tilted for each length. The frame (viewBox) fits tightly
-// around the tilted arrow, so it is drawn as big as the flat one, or bigger.
+// How the sign (one triangle for body, two for wide) is tilted for each
+// length. The frame (viewBox) fits tightly around the tilted wide sign, so
+// it is drawn nearly as big as the flat one. Body uses the same frame, so
+// its triangle is exactly the same size as each wide one.
 const ARROW_TILT = {
   flat:  { rotate: 0,   viewBox: '0 0 100 100' },
-  short: { rotate: -45, viewBox: '0.5 14.6 84.9 84.9' },  // points up (move forward)
-  deep:  { rotate: 45,  viewBox: '0.5 0.5 84.9 84.9' },   // points down (move back)
+  short: { rotate: -45, viewBox: '-20.8 11.7 109.1 109.1' },   // points up (move forward)
+  deep:  { rotate: 45,  viewBox: '-20.8 -20.8 109.1 109.1' },  // points down (move back)
 };
 
 function showScreen(name) {
@@ -220,22 +223,27 @@ function showScreen(name) {
 // Shows the colour + arrow and plays the voice so they arrive together.
 // The phone may report a delay before sound reaches the speaker; if so, the
 // screen change is held back by that amount. syncOffsetMs fine-tunes it.
+// With the voice off the screen is still held back, because the beep reaches
+// the ear late by the same amount: this keeps the beep-to-cue gap as set.
 function showCue(shot) {
   const pointsRight = (shot.side === 'forehand') === (settings.handedness === 'right');
   const speakerDelayMs = ((audio.outputLatency || audio.baseLatency || 0) * 1000);
   const screenDelayMs = speakerDelayMs + settings.syncOffsetMs;
 
-  const voice = audio.createBufferSource();
-  voice.buffer = voices[shot.placement];
-  voice.connect(audio.destination);
-  // If the screen should come first (negative offset), delay the voice instead.
-  voice.start(audio.currentTime + Math.max(0, -screenDelayMs) / 1000);
+  if (settings.voice) {
+    const voice = audio.createBufferSource();
+    voice.buffer = voices[shot.placement];
+    voice.connect(audio.destination);
+    // If the screen should come first (negative offset), delay the voice instead.
+    voice.start(audio.currentTime + Math.max(0, -screenDelayMs) / 1000);
+  }
 
   const tilt = ARROW_TILT[shot.length || 'flat'];
   const paint = () => {
     arrow.setAttribute('viewBox', tilt.viewBox);
     arrowShape.setAttribute('transform', `rotate(${tilt.rotate} 50 50)`);
     arrow.classList.toggle('left', !pointsRight);
+    arrow.classList.toggle('wide', shot.placement === 'wide');
     showScreen(shot.side);
   };
   if (screenDelayMs > 0) setTimeout(paint, screenDelayMs);
@@ -462,8 +470,27 @@ for (const button of shortDeepButtons) {
   });
 }
 
+// Voice on/off, placed just above the Wide / body slider.
+const voiceButtons = document.querySelectorAll('.voice-button');
+sliderInputs.widePercent.row.before(document.getElementById('voice-toggle'));
+
+function showVoice() {
+  for (const button of voiceButtons) {
+    button.classList.toggle('selected', button.dataset.on === String(settings.voice));
+  }
+}
+
+for (const button of voiceButtons) {
+  button.addEventListener('click', () => {
+    settings.voice = button.dataset.on === 'true';
+    showVoice();
+    save();
+  });
+}
+
 function showSettings() {
   showHandedness();
+  showVoice();
   showShortDeep();
   for (const { input, value, slider } of Object.values(sliderInputs)) {
     input.value = settings[slider.key];
