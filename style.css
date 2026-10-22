@@ -232,3 +232,32 @@ input[type="range"]::-webkit-slider-thumb {
 
 /* Rest between sets: a huge countdown. */
 #session.rest #message { font-size: 30vw; line-height: 1.1; }
+
+/* ---------- Camera test ---------- */
+.screen.camera { padding: 0; }
+/* The camera picture and the stick figure are both drawn on the canvas.
+   "contain" shows the whole camera picture, so you can see what it sees. */
+#camera-canvas { width: 100%; height: 100%; object-fit: contain; }
+/* The video itself plays out of sight (iPhones pause hidden videos). */
+.camera-video {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  opacity: 0.01;
+  pointer-events: none;
+}
+#camera-readout {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 12px);
+  left: 12px;
+  right: 120px;             /* keep clear of the Done button */
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.7);
+  font-size: 1.3rem;
+  font-weight: 700;
+  text-align: left;
+  white-space: pre-line;
+}
+#camera-readout:empty { display: none; }
+.screen.camera .end-button { background: #000; color: #fff; border-color: #fff; }

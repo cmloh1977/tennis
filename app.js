@@ -183,7 +183,7 @@ function allowSleep() {
 
 // The wake lock is dropped when the app is hidden, so ask again on return.
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && currentRun) keepAwake();
+  if (document.visibilityState === 'visible' && (currentRun || cameraStream)) keepAwake();
 });
 
 // ---------- Cues ----------
@@ -515,6 +515,171 @@ document.getElementById('reset-settings').addEventListener('click', () => {
   save();
   showSettings();
 });
+
+// ---------- Camera test ----------
+// Shows the front camera with a stick figure drawn over the player, to check
+// that tracking works outdoors and that the player stays in the picture.
+// The pose tracker (MediaPipe, in vendor/) is only loaded when this opens.
+// The picture stays on the phone; nothing is recorded or sent anywhere.
+const cameraScreen = document.getElementById('camera-screen');
+const cameraVideo = document.getElementById('camera-video');
+const cameraCanvas = document.getElementById('camera-canvas');
+const cameraReadout = document.getElementById('camera-readout');
+
+// Body points found by MediaPipe (numbers from its list of 33) and the lines
+// joining them: shoulders, arms, body, legs.
+const NOSE = 0, LEFT_HIP = 23, RIGHT_HIP = 24;
+const BONES = [
+  [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
+  [11, 23], [12, 24], [23, 24],
+  [23, 25], [25, 27], [24, 26], [26, 28],
+];
+const EDGE_MARGIN = 0.1;   // hips this close to an edge (share of the picture) = leaving
+
+let poseTracker = null;
+let cameraStream = null;
+let lastVideoTime = -1;
+let framesCounted = 0;
+let countStart = 0;
+
+async function loadPose() {
+  if (poseTracker) return;
+  const { FilesetResolver, PoseLandmarker } = await import('./vendor/mediapipe/vision_bundle.mjs');
+  const files = await FilesetResolver.forVisionTasks('vendor/mediapipe/wasm');
+  const options = delegate => ({
+    baseOptions: { modelAssetPath: 'vendor/mediapipe/pose_landmarker_lite.task', delegate },
+    runningMode: 'VIDEO',
+    numPoses: 1,
+  });
+  // The graphics chip is fastest; fall back to the main processor.
+  try {
+    poseTracker = await PoseLandmarker.createFromOptions(files, options('GPU'));
+  } catch (err) {
+    console.warn('GPU tracking not available, using CPU:', err);
+    poseTracker = await PoseLandmarker.createFromOptions(files, options('CPU'));
+  }
+}
+
+async function openCamera() {
+  homeScreen.hidden = true;
+  cameraScreen.hidden = false;
+  keepAwake();
+  cameraReadout.textContent = 'Starting camera…';
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+    });
+  } catch (err) {
+    console.error(err);
+    cameraReadout.textContent = err.name === 'NotAllowedError'
+      ? 'Camera not allowed.\nAllow camera access for this site, then try again.'
+      : 'Could not start the camera.';
+    return;
+  }
+  cameraStream = stream;
+  cameraVideo.srcObject = stream;
+  await cameraVideo.play();
+
+  cameraReadout.textContent = 'Loading body tracker…';
+  try {
+    await loadPose();
+  } catch (err) {
+    console.error(err);
+    cameraReadout.textContent = 'Could not load the body tracker.';
+    return;
+  }
+  if (cameraStream !== stream) return;   // Done was tapped while loading
+  lastVideoTime = -1;
+  framesCounted = 0;
+  countStart = performance.now();
+  requestAnimationFrame(trackFrame);
+}
+
+function closeCamera() {
+  if (cameraStream) for (const track of cameraStream.getTracks()) track.stop();
+  cameraStream = null;
+  cameraVideo.srcObject = null;
+  allowSleep();
+  cameraScreen.hidden = true;
+  homeScreen.hidden = false;
+}
+
+// Runs once per screen refresh: find the body in the newest camera picture
+// and draw it.
+function trackFrame() {
+  if (!cameraStream) return;
+  requestAnimationFrame(trackFrame);
+  if (cameraVideo.readyState < 2 || cameraVideo.currentTime === lastVideoTime) return;
+  lastVideoTime = cameraVideo.currentTime;
+
+  const result = poseTracker.detectForVideo(cameraVideo, performance.now());
+  const body = result.landmarks[0];
+  drawCamera(body);
+
+  // Update the readout twice a second.
+  framesCounted++;
+  const elapsed = performance.now() - countStart;
+  if (elapsed >= 500) {
+    const fps = Math.round(framesCounted * 1000 / elapsed);
+    const shape = cameraVideo.videoWidth > cameraVideo.videoHeight ? 'sideways' : 'upright';
+    let lines = [`${fps} fps · picture ${shape}`];
+    if (!body) {
+      lines.push('No one found');
+    } else {
+      const hips = middle(body[LEFT_HIP], body[RIGHT_HIP]);
+      const nearEdge = hips.x < EDGE_MARGIN || hips.x > 1 - EDGE_MARGIN
+                    || hips.y < EDGE_MARGIN || hips.y > 1 - EDGE_MARGIN;
+      lines.push(nearEdge ? 'Hips: near the edge!' : 'Hips: in the picture');
+    }
+    cameraReadout.textContent = lines.join('\n');
+    framesCounted = 0;
+    countStart = performance.now();
+  }
+}
+
+function middle(a, b) { return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; }
+
+// Draws the camera picture, mirrored like a selfie, with thick yellow lines
+// (easy to see in sunlight) and a big white dot on the hips.
+function drawCamera(body) {
+  const w = cameraVideo.videoWidth;
+  const h = cameraVideo.videoHeight;
+  if (cameraCanvas.width !== w || cameraCanvas.height !== h) {
+    cameraCanvas.width = w;
+    cameraCanvas.height = h;
+  }
+  const ctx = cameraCanvas.getContext('2d');
+  ctx.save();
+  ctx.translate(w, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(cameraVideo, 0, 0, w, h);
+  if (body) {
+    const size = Math.max(w, h);
+    const at = point => [point.x * w, point.y * h];
+    ctx.strokeStyle = '#ffeb00';
+    ctx.lineWidth = size / 80;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (const [from, to] of BONES) {
+      ctx.moveTo(...at(body[from]));
+      ctx.lineTo(...at(body[to]));
+    }
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(...at(body[NOSE]), size / 40, 0, 2 * Math.PI);
+    ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(...at(middle(body[LEFT_HIP], body[RIGHT_HIP])), size / 50, 0, 2 * Math.PI);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+document.getElementById('open-camera').addEventListener('click', openCamera);
+document.getElementById('close-camera').addEventListener('click', closeCamera);
 
 // ---------- Start-up ----------
 loadSaved();

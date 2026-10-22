@@ -16,6 +16,11 @@ const FILES = [
   'icons/icon-180.png',
   'icons/icon-192.png',
   'icons/icon-512.png',
+  // Pose tracker for the Camera test (about 18 MB)
+  'vendor/mediapipe/vision_bundle.mjs',
+  'vendor/mediapipe/wasm/vision_wasm_internal.js',
+  'vendor/mediapipe/wasm/vision_wasm_internal.wasm',
+  'vendor/mediapipe/pose_landmarker_lite.task',
 ];
 
 self.addEventListener('install', event => {

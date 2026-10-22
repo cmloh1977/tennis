@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.5 — 2026-10-22
+
+### Camera test (step 1 of [Issue #4](https://github.com/cmloh1977/tennis/issues/4))
+- New **Camera test** button on the Home screen. It turns on the front camera and draws a thick yellow **stick figure** over you, with a white dot on your hips.
+- A readout shows how many pictures per second are tracked, whether the picture is upright or sideways, whether you were found, and warns **"Hips: near the edge!"** when you are about to leave the picture. Use it to choose between holding the phone upright or sideways.
+- **Done** switches the camera off. The picture stays on the phone; nothing is recorded or sent.
+- Uses Google's MediaPipe body tracker (version 1.0.1), stored in the app so it also works offline. It adds about 18 MB, saved on the phone the first time the new version opens.
+- Training sessions are unchanged.
+
 ## v1.4 — 2026-10-22
 
 ### White frame with each cue (follow-up to [Issue #3](https://github.com/cmloh1977/tennis/issues/3))

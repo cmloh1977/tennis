@@ -2,7 +2,7 @@
 
 A web app for shadow-swing practice. It gives random cues so the player reacts instead of planning the next stroke. Used outdoors on a rooftop, with an iPhone or iPad placed a few metres in front of the player.
 
-Current version: **1.4** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
+Current version: **1.5** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
 
 ## Working style (important)
 
@@ -18,7 +18,7 @@ Current version: **1.4** (see `CHANGELOG.md`). Live at **https://cmloh1977.githu
 - On iPhone/iPad, Chrome uses the same engine as Safari (WebKit), so iOS limits on sound and the screen also apply in Chrome. Don't rely on features that only work in desktop/Android Chrome.
 - Installable to the home screen as a **PWA** (web app manifest + service worker so it works offline). Installing from Chrome and from Safari should both work.
 - Hosted on **GitHub Pages**, so it must be purely static files with relative paths (no server code, no build step).
-- **Plain HTML, CSS and JavaScript only.** No frameworks, no npm packages, no bundlers. The helper scripts in `tools/` use only what comes with macOS (Python standard library, `say`, `afconvert`, Swift).
+- **Plain HTML, CSS and JavaScript only.** No frameworks, no npm packages, no bundlers. **One exception (Issue #4):** the MediaPipe pose tracker (`@mediapipe/tasks-vision`, pinned at 1.0.1) for the camera check. Its files are copied into `vendor/mediapipe/` by `tools/get-mediapipe.sh` (not loaded from the internet) and loaded only when the camera is used. The helper scripts in `tools/` use only what comes with macOS (Python standard library, `say`, `afconvert`, Swift).
 
 When changing the app:
 - Bump the version number at the bottom of the home screen (`index.html`) so the user can tell which version their phone has, and add an entry to `CHANGELOG.md`.
@@ -36,6 +36,7 @@ sw.js             service worker (offline caching)
 audio/            pre-recorded voice clips ("wide", "body"); beep and tick are generated tones
 media/            keepawake.mp4 (backup for keeping the screen on)
 icons/            home-screen icons (tennis ball on black)
+vendor/mediapipe/ pose tracker for the camera (library, engine, "lite" model; ~18 MB)
 tools/            scripts that rebuild the audio, icons and video
 docs/             notes for the user (not used by the app)
 .claude/launch.json   local test server (python3 -m http.server 8000)
@@ -125,6 +126,14 @@ The last-used mode is remembered.
 - `sw.js` answers video range requests from the saved copy, so the backup video also works offline.
 - Large touch targets for everything; the user may be tapping with sweaty hands or from a distance.
 - The home screen has a collapsible **"iPhone tips"** section: silent switch, Add to Home Screen, Auto-Lock, brightness.
+
+## Camera test (Issue #4, step 1)
+
+- **Camera test** button on Home opens `#camera-screen`: front camera (`getUserMedia`, `facingMode: 'user'`), mirrored, with a stick figure drawn on a `<canvas>` (the camera picture is drawn there too; the `<video>` plays out of sight). `object-fit: contain` shows the whole camera picture.
+- `loadPose()` in `app.js` imports `vendor/mediapipe/vision_bundle.mjs` on first use and makes a `PoseLandmarker` (GPU, CPU fallback, `runningMode: 'VIDEO'`, one person). `trackFrame()` runs each screen refresh; the readout (fps, upright/sideways, hips near edge) updates twice a second.
+- Only the SIMD engine (`vision_wasm_internal.*`) is shipped; it needs iOS 16.4 or newer.
+- The camera only works on https (the GitHub Pages address) or on localhost. The built-in browser pane on the Mac blocks the camera, so test the drawing there with a fake stream (`canvas.captureStream()`).
+- Next steps (not built yet): show what was detected after each rep, then green pass (time cue → back home) / red fail. See the issue for the rules.
 
 ## Testing
 
