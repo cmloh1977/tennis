@@ -760,18 +760,24 @@ function drawCamera(body) {
 // ---------- Camera check (during a session) ----------
 // With the Camera check setting on, the camera watches during Return and
 // Volley sessions. After each cue the app shows what it saw: how far you
-// moved sideways and whether you came closer or went further away.
+// moved sideways, whether you came closer or went further away, which swing
+// it saw, and how long it took from the cue until you were back home.
 // Distances are measured in shoulder widths, so they don't depend on how far
 // away the phone is.
 const CAMERA = {
   startSeconds: 0.5,       // where the hips are this long before the cue = start spot
-  watchSeconds: 2.5,       // how long after the cue to keep watching
+  maxWatchSeconds: 6,      // show the result by then, even if you're not back home
   resultSeconds: 3,        // how long the result screen shows
   minVisibility: 0.5,      // how sure the tracker must be that it sees a body point
   minSamples: 3,           // fewer pictures than this = "Couldn't see you"
   minMove: 0.25,           // sideways move smaller than this (shoulder widths) = stayed
   bigMove: 1.0,            // sideways move at least this = big, otherwise small
   minDepthPercent: 8,      // closer/further less than this = same
+  swingReach: 0.5,         // a swing: the hitting wrist goes from this far on one side
+                           // of the chest centre (shoulder widths) to this far on the other,
+  swingSeconds: 0.6,       // within this time
+  homeDistance: 0.33,      // back home: hips this close to the start spot (shoulder widths)
+  homeHoldSeconds: 0.2,    // and staying there this long
   keepSeconds: 8,          // forget body positions older than this
 };
 
@@ -792,6 +798,8 @@ function recordSample(body, time) {
     samples.push({
       time,
       hips,
+      shoulders,
+      wrist: at(settings.handedness === 'right' ? RIGHT_WRIST : LEFT_WRIST),
       shoulderWidth: Math.hypot(rightShoulder.x - leftShoulder.x, rightShoulder.y - leftShoulder.y),
       // Shoulders to hips: hardly changes when you turn, but grows as you come closer.
       torso: Math.hypot(shoulders.x - hips.x, shoulders.y - hips.y),
@@ -820,11 +828,11 @@ function furthest(values) {
   return values.reduce((best, v) => (Math.abs(v) > Math.abs(best) ? v : best), 0);
 }
 
-// Compares where the body went after the cue with the start spot.
+// Compares what the body did after the cue (up to now) with the start spot.
 // Returns null if the camera didn't see enough of the player.
-function analyseRep(cueTime) {
+function analyseRep(cueTime, now) {
   const before = samples.filter(s => s.time >= cueTime - CAMERA.startSeconds * 1000 && s.time <= cueTime);
-  const after = samples.filter(s => s.time > cueTime && s.time <= cueTime + CAMERA.watchSeconds * 1000);
+  const after = samples.filter(s => s.time > cueTime && s.time <= now);
   if (before.length < CAMERA.minSamples || after.length < CAMERA.minSamples) return null;
 
   const start = {
@@ -833,12 +841,59 @@ function analyseRep(cueTime) {
     torso: average(before, s => s.torso),
     rightward: Math.sign(average(before, s => s.rightward)) || 1,
   };
+  // + = toward the player's right, in shoulder widths
+  const sideways = smooth(after.map(s => (s.hips.x - start.x) * start.rightward / start.shoulderWidth));
+  // + = came closer (looks bigger), as a share of the start size
+  const depth = smooth(after.map(s => s.torso / start.torso - 1));
+  // Hitting wrist across the body: + = on the player's right of the chest centre
+  const across = smooth(after.map(s => (s.wrist.x - s.shoulders.x) * start.rightward / start.shoulderWidth), 1);
+  const times = after.map(s => s.time);
+
+  const swing = findSwing(across, times);
   return {
-    // + = moved to the player's right, in shoulder widths
-    sideways: furthest(smooth(after.map(s => (s.hips.x - start.x) * start.rightward / start.shoulderWidth))),
-    // + = came closer (looks bigger), as a share of the start size
-    depth: furthest(smooth(after.map(s => s.torso / start.torso - 1))),
+    sideways: furthest(sideways),
+    depth: furthest(depth),
+    swing,
+    homeAt: swing ? findHome(sideways, depth, times, swing.at) : null,
   };
+}
+
+// The first quick sweep of the hitting wrist from one side of the body to the
+// other. From the hitting side to the other side = forehand; the other way =
+// backhand (one- or two-handed).
+function findSwing(across, times) {
+  let lastRight = null, lastLeft = null;   // when the wrist was last far out on each side
+  for (let i = 0; i < across.length; i++) {
+    const t = times[i];
+    if (across[i] >= CAMERA.swingReach) {
+      if (lastLeft !== null && t - lastLeft <= CAMERA.swingSeconds * 1000) return swingFrom(-1, t);
+      lastRight = t;
+    } else if (across[i] <= -CAMERA.swingReach) {
+      if (lastRight !== null && t - lastRight <= CAMERA.swingSeconds * 1000) return swingFrom(1, t);
+      lastLeft = t;
+    }
+  }
+  return null;
+}
+
+function swingFrom(side, at) {
+  const hittingSide = settings.handedness === 'right' ? 1 : -1;
+  return { side: side === hittingSide ? 'forehand' : 'backhand', at };
+}
+
+// The first moment after the swing when the hips are back near the start spot
+// (sideways and forward/back) and stay there for a moment. null = not yet.
+function findHome(sideways, depth, times, after) {
+  const near = i => Math.abs(sideways[i]) <= CAMERA.homeDistance
+                 && Math.abs(depth[i]) * 100 < CAMERA.minDepthPercent;
+  for (let i = 0; i < times.length; i++) {
+    if (times[i] < after || !near(i)) continue;
+    let j = i;
+    while (j < times.length && near(j) && times[j] - times[i] < CAMERA.homeHoldSeconds * 1000) j++;
+    if (j === times.length) return null;            // still waiting to see if you stay
+    if (near(j)) return times[i];
+  }
+  return null;
 }
 
 function describeResult(shot, result) {
@@ -855,17 +910,32 @@ function describeResult(shot, result) {
   const depth = percent < CAMERA.minDepthPercent ? 'same'
     : result.depth > 0 ? 'closer' : 'further';
   lines.push(`Forward/back: ${depth} ${percent}%`);
+  if (!result.swing) {
+    lines.push('Swing: none seen');
+    lines.push('Back home: no time (no swing)');
+  } else {
+    lines.push(`Swing: ${result.swing.side} (at ${seconds(result.swing.at)} s)`);
+    lines.push(result.homeAt ? `Back home: ${seconds(result.homeAt)} s`
+      : `Back home: not within ${CAMERA.maxWatchSeconds} s`);
+  }
   return lines.join('\n');
 }
 
-// After a Return or Volley cue: keep watching for a moment, then show what
-// the camera saw.
+// Time since the cue, e.g. "2.1".
+function seconds(time) { return ((time - cueShownAt) / 1000).toFixed(1); }
+
+// After a Return or Volley cue: keep watching until you are back home after
+// your swing (at most maxWatchSeconds after the cue), then show what the
+// camera saw.
 async function showCheck(run, shot) {
   if (!shot || cameraUse !== 'session' || run.stopped) return;
   showScreen('neutral');
-  await waitExactly(Math.max(0, CAMERA.watchSeconds - (performance.now() - cueShownAt) / 1000));
-  if (run.stopped) return;
-  messageText.textContent = describeResult(shot, analyseRep(cueShownAt));
+  const end = cueShownAt + CAMERA.maxWatchSeconds * 1000;
+  while (performance.now() < end && !analyseRep(cueShownAt, performance.now())?.homeAt) {
+    await waitExactly(0.1);
+    if (run.stopped) return;
+  }
+  messageText.textContent = describeResult(shot, analyseRep(cueShownAt, Math.min(performance.now(), end)));
   showScreen('result');
   await wait(CAMERA.resultSeconds);
   messageText.textContent = '';

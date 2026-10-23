@@ -232,7 +232,7 @@ input[type="range"]::-webkit-slider-thumb {
 
 /* Camera check result: plain white text on black, no frame, so it can't be
    mistaken for a cue. */
-#session.result #message { font-size: 2rem; line-height: 1.5; text-align: left; }
+#session.result #message { font-size: min(2rem, 6.5vw); line-height: 1.5; text-align: left; }
 
 /* Rest between sets: a huge countdown. */
 #session.rest #message { font-size: 30vw; line-height: 1.1; }

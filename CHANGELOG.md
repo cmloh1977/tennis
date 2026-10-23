@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.8 — 2026-10-23
+
+### Camera check: swing and back-home time (step 2b of [Issue #4](https://github.com/cmloh1977/tennis/issues/4))
+- The result screen now also shows the **swing** the camera saw, e.g. "Swing: forehand (at 0.9 s)", and the **back-home time**, e.g. "Back home: 2.1 s".
+- A swing = the hitting wrist sweeping quickly (within 0.6 s) across the body, from half a shoulder width on one side of the chest to half on the other. From the hitting side = forehand, the other way = backhand (one- or two-handed).
+- Back home = hips back within a third of a shoulder width of the start spot (and less than 8% closer/further), after the swing, staying there for 0.2 s. The time runs from the moment the cue appeared.
+- The result now appears **as soon as you are back home**, instead of after a fixed 2.5 s (which came before the end of the swing). If you are not back within 6 s, it shows "not within 6 s". No swing seen = no time.
+- Result text is a little smaller on narrow phones so lines don't wrap.
+
 ## v1.7 — 2026-10-23
 
 ### Updates arrive complete
