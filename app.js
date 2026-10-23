@@ -571,11 +571,13 @@ const cameraReadout = document.getElementById('camera-readout');
 // Body points found by MediaPipe (numbers from its list of 33) and the lines
 // joining them: shoulders, arms, body, legs.
 const NOSE = 0, LEFT_SHOULDER = 11, RIGHT_SHOULDER = 12, LEFT_HIP = 23, RIGHT_HIP = 24;
+const LEFT_WRIST = 15, RIGHT_WRIST = 16;
 const BONES = [
   [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
   [11, 23], [12, 24], [23, 24],
   [23, 25], [25, 27], [24, 26], [26, 28],
 ];
+const JOINTS = [13, 14, 15, 16, 25, 26, 27, 28];   // elbows, wrists, knees, ankles
 const EDGE_MARGIN = 0.1;   // hips this close to an edge (share of the picture) = leaving
 
 let poseTracker = null;
@@ -709,7 +711,8 @@ function trackFrame() {
 function middle(a, b) { return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; }
 
 // Draws the camera picture, mirrored like a selfie, with thick yellow lines
-// (easy to see in sunlight) and a big white dot on the hips.
+// (easy to see in sunlight), white dots on the joints, a big cyan dot on the
+// hitting wrist and a big white dot on the hips.
 function drawCamera(body) {
   const w = cameraVideo.videoWidth;
   const h = cameraVideo.videoHeight;
@@ -738,8 +741,17 @@ function drawCamera(body) {
     ctx.arc(...at(body[NOSE]), size / 40, 0, 2 * Math.PI);
     ctx.stroke();
     ctx.fillStyle = '#ffffff';
+    for (const joint of JOINTS) {
+      ctx.beginPath();
+      ctx.arc(...at(body[joint]), size / 90, 0, 2 * Math.PI);
+      ctx.fill();
+    }
     ctx.beginPath();
     ctx.arc(...at(middle(body[LEFT_HIP], body[RIGHT_HIP])), size / 50, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.fillStyle = '#00e5ff';
+    ctx.beginPath();
+    ctx.arc(...at(body[settings.handedness === 'right' ? RIGHT_WRIST : LEFT_WRIST]), size / 45, 0, 2 * Math.PI);
     ctx.fill();
   }
   ctx.restore();

@@ -2,7 +2,7 @@
 
 A web app for shadow-swing practice. It gives random cues so the player reacts instead of planning the next stroke. Used outdoors on a rooftop, with an iPhone or iPad placed a few metres in front of the player.
 
-Current version: **1.6** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
+Current version: **1.7** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
 
 ## Working style (important)
 
@@ -21,9 +21,10 @@ Current version: **1.6** (see `CHANGELOG.md`). Live at **https://cmloh1977.githu
 - **Plain HTML, CSS and JavaScript only.** No frameworks, no npm packages, no bundlers. **One exception (Issue #4):** the MediaPipe pose tracker (`@mediapipe/tasks-vision`, pinned at 1.0.1) for the camera check. Its files are copied into `vendor/mediapipe/` by `tools/get-mediapipe.sh` (not loaded from the internet) and loaded only when the camera is used. The helper scripts in `tools/` use only what comes with macOS (Python standard library, `say`, `afconvert`, Swift).
 
 When changing the app:
-- Bump the version number at the bottom of the home screen (`index.html`) so the user can tell which version their phone has, and add an entry to `CHANGELOG.md`.
+- Bump the version number at the bottom of the home screen (`index.html`) **and `VERSION` in `sw.js`** (same number; without it phones don't notice the update), and add an entry to `CHANGELOG.md`.
 - Any new file the app needs must be added to the `FILES` list in `sw.js`, or it won't work offline.
-- `sw.js` serves the saved copy first and updates in the background, so a new version shows on the second open after publishing.
+- `sw.js` (since v1.7) saves each version as one complete cache, `tennis-trainer-<VERSION>`, downloaded with `?v=<VERSION>` so GitHub's cache can't hand back an old copy. The new version is only used once every file has arrived; then older caches are deleted. Files are always served from the cache (no background refresh), so old and new files can't mix. A new version shows on the second open after publishing.
+- The MediaPipe files live in their own cache, `tennis-mediapipe-1.0.1` (`TRACKER_FILES`), kept between app versions. If the tracker version changes, rename that cache.
 
 File layout (keep it this small unless there's a good reason):
 
@@ -136,6 +137,7 @@ The last-used mode is remembered.
 - `loadPose()` in `app.js` imports `vendor/mediapipe/vision_bundle.mjs` on first use and makes a `PoseLandmarker` (GPU, CPU fallback, `runningMode: 'VIDEO'`, one person). `trackFrame()` runs each screen refresh; the readout (fps, upright/sideways, hips near edge) updates twice a second.
 - Only the SIMD engine (`vision_wasm_internal.*`) is shipped; it needs iOS 16.4 or newer.
 - The camera only works on https (the GitHub Pages address) or on localhost. The built-in browser pane on the Mac blocks the camera, so test the drawing there with a fake stream (`canvas.captureStream()`).
+- The stick figure has white joint dots (elbows, wrists, knees, ankles) and a big cyan dot on the hitting wrist (from the Handedness setting).
 - `startCamera()` / `stopCamera()` are shared by the Camera test and the Camera check; `cameraUse` says which one is running (`'test'` draws, `'session'` only records).
 
 ### Camera check (step 2a, v1.6)

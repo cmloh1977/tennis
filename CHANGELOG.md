@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.7 — 2026-10-23
+
+### Updates arrive complete
+- Each new version is now downloaded as one complete set. The phone only switches to it once every file has arrived, so old and new files can no longer get mixed (in v1.6 this left the Camera check buttons not working until the app was reopened).
+- The app no longer downloads anything in the background each time it opens; it only downloads when there is a new version.
+- The 18 MB body tracker is kept between versions, so it isn't downloaded again with every update.
+
+### Camera test: joints shown
+- White dots on the elbows, wrists, knees and ankles, so a straight arm no longer looks like one long stick.
+- The **hitting wrist** (right wrist, or left if left-handed) is a big **cyan** dot, so you can check it is followed during a fast swing.
+
 ## v1.6 — 2026-10-23
 
 ### Camera check: see what the camera saw (step 2a of [Issue #4](https://github.com/cmloh1977/tennis/issues/4))
