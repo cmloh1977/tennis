@@ -2,7 +2,7 @@
 
 A web app for shadow-swing practice. It gives random cues so the player reacts instead of planning the next stroke. Used outdoors on a rooftop, with an iPhone or iPad placed a few metres in front of the player.
 
-Current version: **1.9** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
+Current version: **1.10** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
 
 ## Working style (important)
 
@@ -153,7 +153,11 @@ The last-used mode is remembered.
 - Each sample also keeps the hitting wrist (from Handedness) and the chest centre. `findSwing()`: the first time the wrist goes from ≥ `swingReach` (0.5 shoulder widths) on one side of the chest centre to ≥ 0.5 on the other within `swingSeconds` (0.6 s). From the hitting side = forehand, otherwise backhand. Its time is when the sweep completes.
 - `findHome()`: first moment after the swing with hips within `homeDistance` (0.33 shoulder widths) sideways and < `minDepthPercent` closer/further, held for `homeHoldSeconds` (0.2 s). Back-home time = that moment − `cueShownAt`. No swing = no time.
 - In the fake-camera test, reset `cueShownAt = 0` between runs, or the fake player starts the next rep where the last one ended.
-- Next (not built yet): step 3 = green pass (with the back-home time) / red fail, once the readings match reality.
+
+### Big result and results list (v1.10)
+- The user couldn't read 6 small lines from a few metres in 3 s. During play `bigResult()` shows 3–4 huge lines for `resultSeconds` (5 s), `font-size: min(8.5vw, 11vh)`: the longest line ("SMALL STEP RIGHT") fits a 375 px wide phone, so keep words this short. Sideways and depth are named separately ("BIG STEP RIGHT", "STEP FORWARD") because "MOVED RIGHT BIG" + "FORWARD" read like one thing. The depth line (STEP FORWARD / SAME DEPTH / STEP BACK) only shows with Short / deep On.
+- Every rep's full `describeResult()` text goes into `checkLog` (cleared at Start with Camera check). `endSession()` opens `#results-screen` (styled like Settings) when the log has entries; Home shows a **Last camera results** button until the next session.
+- Next (not built yet): step 3 = green pass (with the back-home time) / red fail, once the readings match reality. Version 2.0.
 
 ## Testing
 

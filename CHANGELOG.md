@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.10 — 2026-10-24
+
+### Camera check: readable from where you stand
+- During play the result is now a few **big words**, shown for **5 s** (was 6 small lines for 3 s), for example:
+  "BIG STEP RIGHT" · "STEP FORWARD" · "FOREHAND" · "BACK IN 2.1 s". Sideways: BIG STEP / SMALL STEP RIGHT or LEFT, or NO SIDE STEP. Forward/back (only when Short / deep cues is On): STEP FORWARD, STEP BACK or SAME DEPTH. Also BACKHAND, NO SWING, NOT BACK, CAN'T SEE YOU.
+- After the session (or when you tap End) a **Camera results** list shows every rep with all the details, to read up close. It stays until the next session with Camera check; reopen it with **Last camera results** on the Home screen.
+
 ## v1.9 — 2026-10-24
 
 ### Short / neutral / deep

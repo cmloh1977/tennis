@@ -27,6 +27,7 @@
     <p id="load-status" class="note"></p>
     <button id="open-settings" class="plain-button">Settings</button>
     <button id="open-camera" class="plain-button">Camera test</button>
+    <button id="open-results" class="plain-button" hidden>Last camera results</button>
     <details class="tips">
       <summary>iPhone tips</summary>
       <ul>
@@ -37,7 +38,7 @@
       </ul>
       <p id="awake-method"></p>
     </details>
-    <p class="version">Version 1.9</p>
+    <p class="version">Version 1.10</p>
   </main>
 
   <!-- Settings screen: the sliders are added by app.js -->
@@ -99,6 +100,16 @@
       </g>
     </svg>
     <div id="message"></div>
+  </section>
+
+  <!-- Results list: every rep's Camera check result, read up close after
+       the session. Filled by app.js. -->
+  <section id="results-screen" class="screen settings" hidden>
+    <div class="settings-header">
+      <h2>Camera results</h2>
+      <button id="close-results" class="plain-button">Done</button>
+    </div>
+    <div id="results-list"></div>
   </section>
 
   <!-- Camera test: the front camera with a stick figure drawn over the

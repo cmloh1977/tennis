@@ -367,6 +367,7 @@ async function runSession() {
 
   for (let set = 1; set <= settings.sets; set++) {
     for (let rep = 1; rep <= settings.repsPerSet; rep++) {
+      Object.assign(run, { set, rep });
       statusText.textContent = `Set ${set}/${settings.sets} · Rep ${rep}/${settings.repsPerSet}`;
       await doRep(run);
       if (run.stopped) return;
@@ -393,6 +394,8 @@ function endSession() {
   showScreen('neutral');
   sessionScreen.hidden = true;
   homeScreen.hidden = false;
+  openResultsButton.hidden = checkLog.length === 0;
+  if (checkLog.length) showResults();
 }
 
 // iPhones only allow sound after a tap, so sound is switched on here.
@@ -414,6 +417,7 @@ startButton.addEventListener('click', async () => {
   }
   // Camera check: Return and Volley only (rally cues come too fast).
   if (settings.cameraCheck && mode !== 'rally') {
+    checkLog.length = 0;
     cameraUse = 'session';
     try {
       await startCamera(text => { loadStatus.textContent = text; });
@@ -796,7 +800,7 @@ function drawCamera(body) {
 const CAMERA = {
   startSeconds: 0.5,       // where the hips are this long before the cue = start spot
   maxWatchSeconds: 6,      // show the result by then, even if you're not back home
-  resultSeconds: 3,        // how long the result screen shows
+  resultSeconds: 5,        // how long the big result shows during play
   minVisibility: 0.5,      // how sure the tracker must be that it sees a body point
   minSamples: 3,           // fewer pictures than this = "Couldn't see you"
   minMove: 0.25,           // sideways move smaller than this (shoulder widths) = stayed
@@ -812,6 +816,9 @@ const CAMERA = {
 
 // Body positions seen during a session, newest last.
 const samples = [];
+// Every rep's full result, shown in the results list after the session.
+// Kept until the next session with Camera check starts.
+const checkLog = [];
 
 function recordSample(body, time) {
   const seen = body && [LEFT_SHOULDER, RIGHT_SHOULDER, LEFT_HIP, RIGHT_HIP]
@@ -925,21 +932,52 @@ function findHome(sideways, depth, times, after) {
   return null;
 }
 
+// The readings in words, shared by the big result and the results list.
+function readings(result) {
+  const size = Math.abs(result.sideways);
+  const percent = Math.round(Math.abs(result.depth) * 100);
+  return {
+    size,
+    side: result.sideways > 0 ? 'right' : 'left',
+    stayed: size < CAMERA.minMove,
+    big: size >= CAMERA.bigMove,
+    percent,
+    depth: percent < CAMERA.minDepthPercent ? 'same' : result.depth > 0 ? 'closer' : 'further',
+  };
+}
+
+function cueName(shot) {
+  const depth = shot.length || (settings.shortDeep ? 'neutral' : '');
+  return `${shot.side} ${shot.placement}${depth ? ' ' + depth : ''}`;
+}
+
+// A few huge words, readable from a few metres away during play.
+function bigResult(result) {
+  if (!result) return 'CAN’T SEE YOU';
+  const r = readings(result);
+  const lines = [r.stayed ? 'NO SIDE STEP' : `${r.big ? 'BIG' : 'SMALL'} STEP ${r.side.toUpperCase()}`];
+  if (settings.shortDeep) {
+    lines.push({ same: 'SAME DEPTH', closer: 'STEP FORWARD', further: 'STEP BACK' }[r.depth]);
+  }
+  if (!result.swing) {
+    lines.push('NO SWING');
+  } else {
+    lines.push(result.swing.side.toUpperCase());
+    lines.push(result.homeAt ? `BACK IN ${seconds(result.homeAt)} s` : 'NOT BACK');
+  }
+  return lines.join('\n');
+}
+
+// All the details, for the results list after the session.
 function describeResult(shot, result) {
-  const cueDepth = shot.length || (settings.shortDeep ? 'neutral' : '');
-  const lines = [`Cue: ${shot.side} ${shot.placement}${cueDepth ? ' ' + cueDepth : ''}`];
+  const lines = [`Cue: ${cueName(shot)}`];
   if (!result) {
     lines.push('Couldn’t see you');
     return lines.join('\n');
   }
-  const size = Math.abs(result.sideways);
-  const moved = size < CAMERA.minMove ? 'stayed'
-    : `${result.sideways > 0 ? 'right' : 'left'}, ${size >= CAMERA.bigMove ? 'big' : 'small'}`;
-  lines.push(`Moved: ${moved} (${size.toFixed(1)})`);
-  const percent = Math.round(Math.abs(result.depth) * 100);
-  const depth = percent < CAMERA.minDepthPercent ? 'same'
-    : result.depth > 0 ? 'closer' : 'further';
-  lines.push(`Forward/back: ${depth} ${percent}%`);
+  const r = readings(result);
+  lines.push(`Moved: ${r.stayed ? 'stayed' : `${r.side}, ${r.big ? 'big' : 'small'}`} (${r.size.toFixed(1)})`);
+  lines.push(`Forward/back: ${r.depth} ${r.percent}%`);
   if (!result.swing) {
     lines.push('Swing: none seen');
     lines.push('Back home: no time (no swing)');
@@ -965,11 +1003,38 @@ async function showCheck(run, shot) {
     await waitExactly(0.1);
     if (run.stopped) return;
   }
-  messageText.textContent = describeResult(shot, analyseRep(cueShownAt, Math.min(performance.now(), end)));
+  const result = analyseRep(cueShownAt, Math.min(performance.now(), end));
+  checkLog.push({ label: `Set ${run.set} · Rep ${run.rep}`, details: describeResult(shot, result) });
+  messageText.textContent = bigResult(result);
   showScreen('result');
   await wait(CAMERA.resultSeconds);
   messageText.textContent = '';
 }
+
+// ---------- Results list (after a session with Camera check) ----------
+const resultsScreen = document.getElementById('results-screen');
+const resultsList = document.getElementById('results-list');
+const openResultsButton = document.getElementById('open-results');
+
+function showResults() {
+  resultsList.replaceChildren(...checkLog.map(entry => {
+    const row = document.createElement('div');
+    row.className = 'result-entry';
+    const label = document.createElement('strong');
+    label.textContent = entry.label;
+    row.append(label, '\n' + entry.details);
+    return row;
+  }));
+  homeScreen.hidden = true;
+  resultsScreen.hidden = false;
+  resultsScreen.scrollTop = 0;
+}
+
+document.getElementById('close-results').addEventListener('click', () => {
+  resultsScreen.hidden = true;
+  homeScreen.hidden = false;
+});
+openResultsButton.addEventListener('click', showResults);
 
 document.getElementById('open-camera').addEventListener('click', openCamera);
 document.getElementById('close-camera').addEventListener('click', closeCamera);
