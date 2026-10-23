@@ -16,6 +16,7 @@ const DEFAULT_SETTINGS = {
   sets: 3,
   restSeconds: 60,
   syncOffsetMs: 0,         // + shows the screen later, - plays the voice later
+  cameraCheck: false,      // watch with the camera and show what it saw (Return/Volley)
 };
 
 // Fixed timings (not on the Settings screen).
@@ -220,6 +221,9 @@ function showScreen(name) {
   sessionScreen.className = 'screen ' + name;
 }
 
+// When the last cue actually appeared on screen (for the Camera check).
+let cueShownAt = 0;
+
 // Shows the arrow and plays the voice so they arrive together.
 // The phone may report a delay before sound reaches the speaker; if so, the
 // screen change is held back by that amount. syncOffsetMs fine-tunes it.
@@ -245,6 +249,7 @@ function showCue(shot) {
     arrow.classList.toggle('left', !pointsRight);
     arrow.classList.toggle('wide', shot.placement === 'wide');
     showScreen(shot.side);
+    cueShownAt = performance.now();
   };
   if (screenDelayMs > 0) setTimeout(paint, screenDelayMs);
   else paint();
@@ -264,6 +269,7 @@ function waitExactly(seconds) {
 }
 
 // Neutral screen, random wait, beep, gap, cue. Used by all three modes.
+// Returns the shot that was cued (nothing if the session was ended).
 async function serveRep(run, gapSeconds) {
   showScreen('neutral');
   await wait(randomBetween(TIMING.minWaitSeconds, TIMING.maxWaitSeconds));
@@ -273,17 +279,21 @@ async function serveRep(run, gapSeconds) {
   await waitExactly(gapSeconds);
   if (run.stopped) return;
 
-  showCue(pickShot());
+  const shot = pickShot();
+  showCue(shot);
+  return shot;
 }
 
 async function returnRep(run) {
-  await serveRep(run, settings.gapSeconds);
+  const shot = await serveRep(run, settings.gapSeconds);
   await wait(TIMING.cueSeconds);
+  await showCheck(run, shot);
 }
 
 async function volleyRep(run) {
-  await serveRep(run, settings.gapSeconds * TIMING.volleyGapFactor);
+  const shot = await serveRep(run, settings.gapSeconds * TIMING.volleyGapFactor);
   await wait(TIMING.cueSeconds);
+  await showCheck(run, shot);
 }
 
 // The return, then a new cue every few seconds (each after a tick), until the
@@ -362,6 +372,7 @@ function endSession() {
   if (currentRun) currentRun.stopped = true;
   currentRun = null;
   allowSleep();
+  if (cameraUse === 'session') stopCamera();
   messageText.textContent = '';
   showScreen('neutral');
   sessionScreen.hidden = true;
@@ -384,6 +395,19 @@ startButton.addEventListener('click', async () => {
     allowSleep();
     startButton.disabled = false;
     return;
+  }
+  // Camera check: Return and Volley only (rally cues come too fast).
+  if (settings.cameraCheck && mode !== 'rally') {
+    cameraUse = 'session';
+    try {
+      await startCamera(text => { loadStatus.textContent = text; });
+      loadStatus.textContent = '';
+    } catch (err) {
+      loadStatus.textContent = `${err.message}\nOr turn off Camera check in Settings.`;
+      allowSleep();
+      startButton.disabled = false;
+      return;
+    }
   }
   startButton.disabled = false;
   homeScreen.hidden = true;
@@ -488,9 +512,27 @@ for (const button of voiceButtons) {
   });
 }
 
+// Camera check on/off.
+const cameraCheckButtons = document.querySelectorAll('.camera-check-button');
+
+function showCameraCheck() {
+  for (const button of cameraCheckButtons) {
+    button.classList.toggle('selected', button.dataset.on === String(settings.cameraCheck));
+  }
+}
+
+for (const button of cameraCheckButtons) {
+  button.addEventListener('click', () => {
+    settings.cameraCheck = button.dataset.on === 'true';
+    showCameraCheck();
+    save();
+  });
+}
+
 function showSettings() {
   showHandedness();
   showVoice();
+  showCameraCheck();
   showShortDeep();
   for (const { input, value, slider } of Object.values(sliderInputs)) {
     input.value = settings[slider.key];
@@ -528,7 +570,7 @@ const cameraReadout = document.getElementById('camera-readout');
 
 // Body points found by MediaPipe (numbers from its list of 33) and the lines
 // joining them: shoulders, arms, body, legs.
-const NOSE = 0, LEFT_HIP = 23, RIGHT_HIP = 24;
+const NOSE = 0, LEFT_SHOULDER = 11, RIGHT_SHOULDER = 12, LEFT_HIP = 23, RIGHT_HIP = 24;
 const BONES = [
   [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
   [11, 23], [12, 24], [23, 24],
@@ -538,6 +580,7 @@ const EDGE_MARGIN = 0.1;   // hips this close to an edge (share of the picture) 
 
 let poseTracker = null;
 let cameraStream = null;
+let cameraUse = null;      // 'test' (Camera test screen) or 'session' (Camera check)
 let lastVideoTime = -1;
 let framesCounted = 0;
 let countStart = 0;
@@ -560,11 +603,11 @@ async function loadPose() {
   }
 }
 
-async function openCamera() {
-  homeScreen.hidden = true;
-  cameraScreen.hidden = false;
-  keepAwake();
-  cameraReadout.textContent = 'Starting camera…';
+// Turns on the front camera (iPhones ask permission the first time) and
+// loads the tracker, then starts trackFrame(). say() shows progress.
+// Returns false if stopCamera() was called while it was still loading.
+async function startCamera(say) {
+  say('Starting camera…');
   let stream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({
@@ -573,49 +616,73 @@ async function openCamera() {
     });
   } catch (err) {
     console.error(err);
-    cameraReadout.textContent = err.name === 'NotAllowedError'
+    throw new Error(err.name === 'NotAllowedError'
       ? 'Camera not allowed.\nAllow camera access for this site, then try again.'
-      : 'Could not start the camera.';
-    return;
+      : 'Could not start the camera.');
   }
   cameraStream = stream;
   cameraVideo.srcObject = stream;
   await cameraVideo.play();
 
-  cameraReadout.textContent = 'Loading body tracker…';
+  say('Loading body tracker…');
   try {
     await loadPose();
   } catch (err) {
     console.error(err);
-    cameraReadout.textContent = 'Could not load the body tracker.';
-    return;
+    stopCamera();
+    throw new Error('Could not load the body tracker.');
   }
-  if (cameraStream !== stream) return;   // Done was tapped while loading
+  if (cameraStream !== stream) return false;
   lastVideoTime = -1;
   framesCounted = 0;
   countStart = performance.now();
+  samples.length = 0;
   requestAnimationFrame(trackFrame);
+  return true;
+}
+
+function stopCamera() {
+  if (cameraStream) for (const track of cameraStream.getTracks()) track.stop();
+  cameraStream = null;
+  cameraUse = null;
+  cameraVideo.srcObject = null;
+  samples.length = 0;
+}
+
+async function openCamera() {
+  homeScreen.hidden = true;
+  cameraScreen.hidden = false;
+  keepAwake();
+  cameraUse = 'test';
+  try {
+    await startCamera(text => { cameraReadout.textContent = text; });
+  } catch (err) {
+    cameraReadout.textContent = err.message;
+  }
 }
 
 function closeCamera() {
-  if (cameraStream) for (const track of cameraStream.getTracks()) track.stop();
-  cameraStream = null;
-  cameraVideo.srcObject = null;
+  stopCamera();
   allowSleep();
   cameraScreen.hidden = true;
   homeScreen.hidden = false;
 }
 
-// Runs once per screen refresh: find the body in the newest camera picture
-// and draw it.
+// Runs once per screen refresh: find the body in the newest camera picture.
+// The Camera test draws it; a session only remembers where the body was.
 function trackFrame() {
   if (!cameraStream) return;
   requestAnimationFrame(trackFrame);
   if (cameraVideo.readyState < 2 || cameraVideo.currentTime === lastVideoTime) return;
   lastVideoTime = cameraVideo.currentTime;
 
-  const result = poseTracker.detectForVideo(cameraVideo, performance.now());
+  const now = performance.now();
+  const result = poseTracker.detectForVideo(cameraVideo, now);
   const body = result.landmarks[0];
+  if (cameraUse === 'session') {
+    recordSample(body, now);
+    return;
+  }
   drawCamera(body);
 
   // Update the readout twice a second.
@@ -676,6 +743,120 @@ function drawCamera(body) {
     ctx.fill();
   }
   ctx.restore();
+}
+
+// ---------- Camera check (during a session) ----------
+// With the Camera check setting on, the camera watches during Return and
+// Volley sessions. After each cue the app shows what it saw: how far you
+// moved sideways and whether you came closer or went further away.
+// Distances are measured in shoulder widths, so they don't depend on how far
+// away the phone is.
+const CAMERA = {
+  startSeconds: 0.5,       // where the hips are this long before the cue = start spot
+  watchSeconds: 2.5,       // how long after the cue to keep watching
+  resultSeconds: 3,        // how long the result screen shows
+  minVisibility: 0.5,      // how sure the tracker must be that it sees a body point
+  minSamples: 3,           // fewer pictures than this = "Couldn't see you"
+  minMove: 0.25,           // sideways move smaller than this (shoulder widths) = stayed
+  bigMove: 1.0,            // sideways move at least this = big, otherwise small
+  minDepthPercent: 8,      // closer/further less than this = same
+  keepSeconds: 8,          // forget body positions older than this
+};
+
+// Body positions seen during a session, newest last.
+const samples = [];
+
+function recordSample(body, time) {
+  const seen = body && [LEFT_SHOULDER, RIGHT_SHOULDER, LEFT_HIP, RIGHT_HIP]
+    .every(i => (body[i].visibility ?? 1) >= CAMERA.minVisibility);
+  if (seen) {
+    // In pixels, so sideways and up-down distances compare fairly.
+    const w = cameraVideo.videoWidth;
+    const h = cameraVideo.videoHeight;
+    const at = i => ({ x: body[i].x * w, y: body[i].y * h });
+    const leftShoulder = at(LEFT_SHOULDER), rightShoulder = at(RIGHT_SHOULDER);
+    const shoulders = middle(leftShoulder, rightShoulder);
+    const hips = middle(at(LEFT_HIP), at(RIGHT_HIP));
+    samples.push({
+      time,
+      hips,
+      shoulderWidth: Math.hypot(rightShoulder.x - leftShoulder.x, rightShoulder.y - leftShoulder.y),
+      // Shoulders to hips: hardly changes when you turn, but grows as you come closer.
+      torso: Math.hypot(shoulders.x - hips.x, shoulders.y - hips.y),
+      // Which way is the player's right in the picture (+1 or -1). Taken from
+      // the body itself, so it works whether or not the camera mirrors.
+      rightward: Math.sign(rightShoulder.x - leftShoulder.x),
+    });
+  }
+  while (samples.length && samples[0].time < time - CAMERA.keepSeconds * 1000) samples.shift();
+}
+
+function average(list, value) {
+  return list.reduce((sum, item) => sum + value(item), 0) / list.length;
+}
+
+// Evens out jitter: each value becomes the average of itself and its neighbours.
+function smooth(values, reach = 2) {
+  return values.map((_, i) => {
+    const near = values.slice(Math.max(0, i - reach), i + reach + 1);
+    return near.reduce((sum, v) => sum + v, 0) / near.length;
+  });
+}
+
+// The value furthest from zero (keeps its sign).
+function furthest(values) {
+  return values.reduce((best, v) => (Math.abs(v) > Math.abs(best) ? v : best), 0);
+}
+
+// Compares where the body went after the cue with the start spot.
+// Returns null if the camera didn't see enough of the player.
+function analyseRep(cueTime) {
+  const before = samples.filter(s => s.time >= cueTime - CAMERA.startSeconds * 1000 && s.time <= cueTime);
+  const after = samples.filter(s => s.time > cueTime && s.time <= cueTime + CAMERA.watchSeconds * 1000);
+  if (before.length < CAMERA.minSamples || after.length < CAMERA.minSamples) return null;
+
+  const start = {
+    x: average(before, s => s.hips.x),
+    shoulderWidth: average(before, s => s.shoulderWidth),
+    torso: average(before, s => s.torso),
+    rightward: Math.sign(average(before, s => s.rightward)) || 1,
+  };
+  return {
+    // + = moved to the player's right, in shoulder widths
+    sideways: furthest(smooth(after.map(s => (s.hips.x - start.x) * start.rightward / start.shoulderWidth))),
+    // + = came closer (looks bigger), as a share of the start size
+    depth: furthest(smooth(after.map(s => s.torso / start.torso - 1))),
+  };
+}
+
+function describeResult(shot, result) {
+  const lines = [`Cue: ${shot.side} ${shot.placement}${shot.length ? ' ' + shot.length : ''}`];
+  if (!result) {
+    lines.push('Couldn’t see you');
+    return lines.join('\n');
+  }
+  const size = Math.abs(result.sideways);
+  const moved = size < CAMERA.minMove ? 'stayed'
+    : `${result.sideways > 0 ? 'right' : 'left'}, ${size >= CAMERA.bigMove ? 'big' : 'small'}`;
+  lines.push(`Moved: ${moved} (${size.toFixed(1)})`);
+  const percent = Math.round(Math.abs(result.depth) * 100);
+  const depth = percent < CAMERA.minDepthPercent ? 'same'
+    : result.depth > 0 ? 'closer' : 'further';
+  lines.push(`Forward/back: ${depth} ${percent}%`);
+  return lines.join('\n');
+}
+
+// After a Return or Volley cue: keep watching for a moment, then show what
+// the camera saw.
+async function showCheck(run, shot) {
+  if (!shot || cameraUse !== 'session' || run.stopped) return;
+  showScreen('neutral');
+  await waitExactly(Math.max(0, CAMERA.watchSeconds - (performance.now() - cueShownAt) / 1000));
+  if (run.stopped) return;
+  messageText.textContent = describeResult(shot, analyseRep(cueShownAt));
+  showScreen('result');
+  await wait(CAMERA.resultSeconds);
+  messageText.textContent = '';
 }
 
 document.getElementById('open-camera').addEventListener('click', openCamera);

@@ -2,7 +2,7 @@
 
 A web app for shadow-swing practice. It gives random cues so the player reacts instead of planning the next stroke. Used outdoors on a rooftop, with an iPhone or iPad placed a few metres in front of the player.
 
-Current version: **1.5** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
+Current version: **1.6** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
 
 ## Working style (important)
 
@@ -114,6 +114,7 @@ The last-used mode is remembered.
 | Sets | 1 – 10 | 3 |
 | Rest between sets | 10 s – 3 min | 1 min |
 | Sound / screen sync | −150 to +150 ms | 0 |
+| Camera check (Return / Volley) | Off / On | Off |
 
 - Defined in `DEFAULT_SETTINGS` and `SLIDERS` in `app.js`. Fixed timings (wait range, cue length, volley factor, tick lead, rally shot range, STOP length) are in `TIMING`.
 - Saved in `localStorage` under `tennis-trainer-v1` (settings + mode), wrapped in try/catch. "Reset to defaults" button.
@@ -127,13 +128,24 @@ The last-used mode is remembered.
 - Large touch targets for everything; the user may be tapping with sweaty hands or from a distance.
 - The home screen has a collapsible **"iPhone tips"** section: silent switch, Add to Home Screen, Auto-Lock, brightness.
 
-## Camera test (Issue #4, step 1)
+## Camera (Issue #4)
+
+### Camera test (step 1)
 
 - **Camera test** button on Home opens `#camera-screen`: front camera (`getUserMedia`, `facingMode: 'user'`), mirrored, with a stick figure drawn on a `<canvas>` (the camera picture is drawn there too; the `<video>` plays out of sight). `object-fit: contain` shows the whole camera picture.
 - `loadPose()` in `app.js` imports `vendor/mediapipe/vision_bundle.mjs` on first use and makes a `PoseLandmarker` (GPU, CPU fallback, `runningMode: 'VIDEO'`, one person). `trackFrame()` runs each screen refresh; the readout (fps, upright/sideways, hips near edge) updates twice a second.
 - Only the SIMD engine (`vision_wasm_internal.*`) is shipped; it needs iOS 16.4 or newer.
 - The camera only works on https (the GitHub Pages address) or on localhost. The built-in browser pane on the Mac blocks the camera, so test the drawing there with a fake stream (`canvas.captureStream()`).
-- Next steps (not built yet): show what was detected after each rep, then green pass (time cue → back home) / red fail. See the issue for the rules.
+- `startCamera()` / `stopCamera()` are shared by the Camera test and the Camera check; `cameraUse` says which one is running (`'test'` draws, `'session'` only records).
+
+### Camera check (step 2a, v1.6)
+- **Camera check** setting (default Off). On = Return and Volley sessions start the camera in the Start tap (Rally never does). If the camera fails, Start stops with a message.
+- `trackFrame()` → `recordSample()` keeps the last 8 s of body positions (hips, shoulder width, torso length, in pixels). `showCue()` sets `cueShownAt` in its paint step.
+- After the cue, `showCheck()` waits until 2.5 s after the cue, then `analyseRep()` compares with the start spot (hips averaged over the 0.5 s before the cue) and the `result` screen shows `describeResult()` for 3 s: plain text on black, **no white frame**.
+- Sideways = furthest hip move in **shoulder widths** (distance-independent), toward the player's own right/left; which way is "right" in the picture comes from the shoulders, so camera mirroring doesn't matter. Forward/back = change in torso length (shoulders to hips; hardly changes when turning).
+- All limits are in `CAMERA` in `app.js` (stayed < 0.25, big ≥ 1.0, depth "same" < 8%). No pass/fail yet: the user compares results with what they did, and we tune.
+- On the Mac the camera is blocked and the hidden pane pauses `requestAnimationFrame`: test with a fake `getUserMedia` (`canvas.captureStream()`), a fake `poseTracker.detectForVideo` that moves a body after `cueShownAt`, and `requestAnimationFrame` swapped for `setTimeout`.
+- Next (not built yet): step 2b = swing detection (dominant wrist sweeping across the body) and the "back home" time (cue → hips back at the start spot, only after a swing); step 3 = green pass / red fail.
 
 ## Testing
 

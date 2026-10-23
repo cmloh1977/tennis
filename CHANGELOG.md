@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.6 — 2026-10-23
+
+### Camera check: see what the camera saw (step 2a of [Issue #4](https://github.com/cmloh1977/tennis/issues/4))
+- New **Camera check** switch in Settings (default Off). When On, Return and Volley sessions turn on the front camera at Start. The screen and cues look exactly as before.
+- After each cue the app watches for 2.5 s, then shows a **result screen** for 3 s (white text on black, no frame), for example: "Cue: forehand wide · Moved: right, big (1.6) · Forward/back: closer 12%".
+- Sideways moves are measured in shoulder widths from where your hips were just before the cue: under 0.25 = stayed, 1.0 or more = big, in between = small. "Same" means less than 8% closer or further.
+- No pass / fail yet: compare the result with what you did, so the limits can be tuned. Swing and "back home" time come next (step 2b).
+- Return + Rally keeps the camera off.
+
 ## v1.5 — 2026-10-22
 
 ### Camera test (step 1 of [Issue #4](https://github.com/cmloh1977/tennis/issues/4))
