@@ -11,7 +11,8 @@ const DEFAULT_SETTINGS = {
   widePercent: 50,         // wide/body mix
   voice: true,             // say "wide" / "body" (off = triangles only)
   shortDeep: false,        // tilt the arrow up (short) or down (deep)
-  deepPercent: 50,         // short/deep mix (only used when shortDeep is on)
+  shortPercent: 33,        // share of short cues (only used when shortDeep is on);
+  deepPercent: 33,         // the rest are neutral (flat arrow)
   repsPerSet: 10,
   sets: 3,
   restSeconds: 60,
@@ -44,8 +45,11 @@ const SLIDERS = [
     show: v => `${100 - v}% forehand · ${v}% backhand` },
   { key: 'widePercent', label: 'Wide / body', min: 0, max: 100, step: 10,
     show: v => `${v}% wide · ${100 - v}% body` },
-  { key: 'deepPercent', label: 'Short / deep', min: 0, max: 100, step: 10,
-    show: v => `${100 - v}% short · ${v}% deep` },
+  { key: 'shortPercent', label: 'Short (tilted up)', min: 0, max: 100, step: 1,
+    show: v => `${v}% short` },
+  { key: 'deepPercent', label: 'Deep (tilted down)', min: 0, max: 100, step: 1,
+    show: v => `${v}% deep · ${100 - settings.shortPercent - v}% neutral (flat)`,
+    hint: 'Neutral = whatever is left: stay at the same depth.' },
   { key: 'repsPerSet', label: 'Reps per set', min: 1, max: 30, step: 1,
     show: v => `${v} reps` },
   { key: 'sets', label: 'Sets', min: 1, max: 10, step: 1,
@@ -69,6 +73,12 @@ function loadSaved() {
       if (typeof saved.settings?.[key] === typeof DEFAULT_SETTINGS[key]) {
         settings[key] = saved.settings[key];
       }
+    }
+    // Before v1.9 there was no neutral: short was simply 100% minus deep.
+    // Such saves start on the new short / neutral / deep defaults.
+    if (saved.settings && saved.settings.shortPercent === undefined) {
+      settings.shortPercent = DEFAULT_SETTINGS.shortPercent;
+      settings.deepPercent = DEFAULT_SETTINGS.deepPercent;
     }
     if (['return', 'volley', 'rally'].includes(saved.mode)) mode = saved.mode;
   } catch (err) {
@@ -201,10 +211,16 @@ function pickShot() {
   return {
     side: Math.random() * 100 < settings.backhandPercent ? 'backhand' : 'forehand',
     placement: Math.random() * 100 < settings.widePercent ? 'wide' : 'body',
-    // null = flat arrow (short/deep switched off)
-    length: !settings.shortDeep ? null
-      : Math.random() * 100 < settings.deepPercent ? 'deep' : 'short',
+    // null = flat arrow (short/deep switched off, or a neutral cue)
+    length: settings.shortDeep ? pickLength() : null,
   };
+}
+
+function pickLength() {
+  const roll = Math.random() * 100;
+  if (roll < settings.shortPercent) return 'short';
+  if (roll < settings.shortPercent + settings.deepPercent) return 'deep';
+  return null;
 }
 
 // How the sign (one triangle for body, two for wide) is tilted for each
@@ -466,6 +482,7 @@ for (const slider of SLIDERS) {
 
   input.addEventListener('input', () => {
     settings[slider.key] = Number(input.value);
+    if (slider.key === 'shortPercent' || slider.key === 'deepPercent') keepDepthsUnder100(slider.key);
     value.textContent = slider.show(settings[slider.key]);
     save();
   });
@@ -473,17 +490,29 @@ for (const slider of SLIDERS) {
   document.getElementById('sliders').append(row);
 }
 
-// Short / deep on/off, placed just above its slider. The slider is hidden
+// Short + deep can't be more than 100%: moving one slider pulls the other
+// down if needed. Both show again, because the deep one also shows neutral.
+function keepDepthsUnder100(moved) {
+  const other = moved === 'shortPercent' ? 'deepPercent' : 'shortPercent';
+  settings[other] = Math.min(settings[other], 100 - settings[moved]);
+  for (const key of ['shortPercent', 'deepPercent']) {
+    const { input, value, slider } = sliderInputs[key];
+    input.value = settings[key];
+    value.textContent = slider.show(settings[key]);
+  }
+}
+
+// Short / deep on/off, placed just above its sliders. The sliders are hidden
 // while it's off.
 const shortDeepButtons = document.querySelectorAll('.short-deep-button');
-const deepSliderRow = sliderInputs.deepPercent.row;
-deepSliderRow.before(document.getElementById('short-deep-toggle'));
+const depthSliderRows = [sliderInputs.shortPercent.row, sliderInputs.deepPercent.row];
+depthSliderRows[0].before(document.getElementById('short-deep-toggle'));
 
 function showShortDeep() {
   for (const button of shortDeepButtons) {
     button.classList.toggle('selected', button.dataset.on === String(settings.shortDeep));
   }
-  deepSliderRow.hidden = !settings.shortDeep;
+  for (const row of depthSliderRows) row.hidden = !settings.shortDeep;
 }
 
 for (const button of shortDeepButtons) {
@@ -897,7 +926,8 @@ function findHome(sideways, depth, times, after) {
 }
 
 function describeResult(shot, result) {
-  const lines = [`Cue: ${shot.side} ${shot.placement}${shot.length ? ' ' + shot.length : ''}`];
+  const cueDepth = shot.length || (settings.shortDeep ? 'neutral' : '');
+  const lines = [`Cue: ${shot.side} ${shot.placement}${cueDepth ? ' ' + cueDepth : ''}`];
   if (!result) {
     lines.push('Couldn’t see you');
     return lines.join('\n');

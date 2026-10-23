@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.9 — 2026-10-24
+
+### Short / neutral / deep
+- With **Short / deep cues** On there are now three depths: **short** (sign tilted up, move forward), **neutral** (flat sign, stay at the same depth) and **deep** (tilted down, move back). Before, every cue was either short or deep.
+- The one Short / deep slider is replaced by two: **Short** and **Deep** (default 33% each). Neutral is whatever is left, shown under the Deep slider. If the two add up to more than 100%, the other one is lowered.
+- Settings saved by an older version start on the new 33 / 33 mix.
+- Camera check names a neutral cue, e.g. "Cue: forehand wide neutral".
+
 ## v1.8 — 2026-10-23
 
 ### Camera check: swing and back-home time (step 2b of [Issue #4](https://github.com/cmloh1977/tennis/issues/4))

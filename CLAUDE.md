@@ -2,7 +2,7 @@
 
 A web app for shadow-swing practice. It gives random cues so the player reacts instead of planning the next stroke. Used outdoors on a rooftop, with an iPhone or iPad placed a few metres in front of the player.
 
-Current version: **1.8** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
+Current version: **1.9** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
 
 ## Working style (important)
 
@@ -70,7 +70,7 @@ Since v1.3 cues have no background colour (Issue #3): the triangles appearing on
 - The triangles are solid white SVG shapes (`#arrow` / `#arrow-shape` in `index.html`; `.body-shape` and `.wide-shape`, switched by the `wide` class). **Body and wide use exactly the same triangle shape and size** (the user asked for this); the wide sign fills the screen width minus a black gap inside the white frame (`#arrow` width `calc(100vw - 16vmin)`), so each triangle is slim (46 × 100 in a 100 × 100 frame).
 - A voice says **"wide"** or **"body"** at the same moment the screen changes. In `app.js` this is the shot's `placement`. The **Voice** setting (default On) can turn the voice off, leaving triangles only; beep and tick still play.
 - **Handedness** setting (default: right-handed). Left-handed flips the directions.
-- **Short / deep** (optional, off by default, visual only): the sign tilts 45°. Short = up (move forward), deep = down (move back): forehand ↗ / ↘, backhand ↖ / ↙. Left-handed swaps left/right only. In `app.js` this is the shot's `length` (`null` when off); `ARROW_TILT` rotates the `#arrow-shape` group and switches to a `viewBox` fitted tightly around the tilted wide sign (body uses the same frame so both stay the same size).
+- **Short / deep** (optional, off by default, visual only): three depths since v1.9. Short = sign tilted 45° up (move forward), deep = tilted down (move back), neutral = flat (stay at the same depth): forehand up-right / down-right, backhand up-left / down-left. Left-handed swaps left/right only. The mix comes from the Short and Deep sliders; neutral is the rest (`pickLength()`). In `app.js` this is the shot's `length` (`null` when off or neutral); `ARROW_TILT` rotates the `#arrow-shape` group and switches to a `viewBox` fitted tightly around the tilted wide sign (body uses the same frame so both stay the same size).
 - Must be readable in **bright sunlight**: pure white on black, huge shapes, high contrast. No subtle greys or thin lines.
 - The neutral screen is black. The status text ("Set 1/3 · Rep 4/10", top left) and the End button (top right) are hidden during cues.
 
@@ -110,7 +110,8 @@ The last-used mode is remembered.
 | Wide / body | 0 – 100% wide | 50% |
 | Voice ("wide" / "body") | Off / On | On |
 | Short / deep cues (switch) | Off / On | Off |
-| Short / deep (shown only when On) | 0 – 100% deep | 50% |
+| Short (shown only when Short / deep is On) | 0 – 100% | 33% |
+| Deep (shown only when On; neutral = the rest) | 0 – 100% | 33% |
 | Reps per set | 1 – 30 | 10 |
 | Sets | 1 – 10 | 3 |
 | Rest between sets | 10 s – 3 min | 1 min |
@@ -118,7 +119,7 @@ The last-used mode is remembered.
 | Camera check (Return / Volley) | Off / On | Off |
 
 - Defined in `DEFAULT_SETTINGS` and `SLIDERS` in `app.js`. Fixed timings (wait range, cue length, volley factor, tick lead, rally shot range, STOP length) are in `TIMING`.
-- Saved in `localStorage` under `tennis-trainer-v1` (settings + mode), wrapped in try/catch. "Reset to defaults" button.
+- Saved in `localStorage` under `tennis-trainer-v1` (settings + mode), wrapped in try/catch. "Reset to defaults" button. Short + Deep are kept ≤ 100% (`keepDepthsUnder100()`); saves from before v1.9 (no `shortPercent`) start on the 33 / 33 defaults.
 - Between sets: big countdown on a black screen, beep 3 s before the next set.
 
 ## iPhone / iPad requirements (Chrome and Safari)
