@@ -27,6 +27,7 @@
     <p id="load-status" class="note"></p>
     <button id="open-settings" class="plain-button">Settings</button>
     <button id="open-camera" class="plain-button">Camera test</button>
+    <button id="open-tuning" class="plain-button">Tuning test</button>
     <button id="open-results" class="plain-button" hidden>Last camera results</button>
     <details class="tips">
       <summary>iPhone tips</summary>
@@ -35,10 +36,11 @@
         <li><strong>Add to Home Screen</strong> for a full-screen app that works offline: tap Share (in Chrome, the share icon in the address bar), then “Add to Home Screen”.</li>
         <li><strong>Screen turning off?</strong> The app keeps it awake during a session. If it still turns off, set Settings → Display &amp; Brightness → Auto-Lock to a longer time.</li>
         <li><strong>Sunlight:</strong> turn screen brightness all the way up.</li>
+        <li><strong>Camera check:</strong> place the phone <strong>sideways</strong>, at chest height, a few metres away, with your whole body in view. Check with Camera test.</li>
       </ul>
       <p id="awake-method"></p>
     </details>
-    <p class="version">Version 1.10</p>
+    <p class="version">Version 1.11</p>
   </main>
 
   <!-- Settings screen: the sliders are added by app.js -->
@@ -84,7 +86,7 @@
     <button id="reset-settings" class="plain-button reset">Reset to defaults</button>
   </section>
 
-  <!-- Session screen: neutral / forehand / backhand / stop / rest / result -->
+  <!-- Session screen: neutral / forehand / backhand / stop / rest / result / instruction -->
   <section id="session" class="screen neutral" hidden>
     <div id="status"></div>
     <button id="end" class="end-button">End</button>
@@ -109,6 +111,7 @@
       <h2>Camera results</h2>
       <button id="close-results" class="plain-button">Done</button>
     </div>
+    <button id="copy-results" class="plain-button">Copy results</button>
     <div id="results-list"></div>
   </section>
 

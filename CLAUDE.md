@@ -2,7 +2,7 @@
 
 A web app for shadow-swing practice. It gives random cues so the player reacts instead of planning the next stroke. Used outdoors on a rooftop, with an iPhone or iPad placed a few metres in front of the player.
 
-Current version: **1.10** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
+Current version: **1.11** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
 
 ## Working style (important)
 
@@ -157,6 +157,13 @@ The last-used mode is remembered.
 ### Big result and results list (v1.10)
 - The user couldn't read 6 small lines from a few metres in 3 s. During play `bigResult()` shows 3–4 huge lines for `resultSeconds` (5 s), `font-size: min(8.5vw, 11vh)`: the longest line ("SMALL STEP RIGHT") fits a 375 px wide phone, so keep words this short. Sideways and depth are named separately ("BIG STEP RIGHT", "STEP FORWARD") because "MOVED RIGHT BIG" + "FORWARD" read like one thing. The depth line (STEP FORWARD / SAME DEPTH / STEP BACK) only shows with Short / deep On.
 - Every rep's full `describeResult()` text goes into `checkLog` (cleared at Start with Camera check). `endSession()` opens `#results-screen` (styled like Settings) when the log has entries; Home shows a **Last camera results** button until the next session.
+
+### Tuning test and Copy results (v1.11)
+- **Sideways (landscape) is the recommended camera setup**: the user found it gives more room for wide moves. Check camera screens in landscape first.
+- **Tuning test** button (Home): `runSession(true)` runs `TUNING_REPS` (12 fixed shots, one set) with `tuningRep()`: an `instruction` screen ("DO: …", same big style as `result`) for 5 s, then `serveRep()` with the fixed shot, then `showCheck()` with the asked words. Always uses the camera and always shows the depth line. Reps 1–8 correct, 9–12 deliberate mistakes. Left-handed swaps the words LEFT/RIGHT (`tuningWords()`).
+- `start(withCamera, tuning)` is shared by Start and Tuning test.
+- Results list entries have an "Asked:" line in the Tuning test. **Copy results** copies the list plus `rawNumbers()` (side, depth, wrist reach R/L, closest home after the swing) for tuning `CAMERA`.
+- Tuning process: user runs the Tuning test sideways, pastes the copied text, we set each limit between the correct reps (1–8) and the mistakes (9–12), explain the change, publish, and repeat until reps 1–8 read correctly and 9–12 are caught.
 - Next (not built yet): step 3 = green pass (with the back-home time) / red fail, once the readings match reality. Version 2.0.
 
 ## Testing

@@ -232,7 +232,8 @@ input[type="range"]::-webkit-slider-thumb {
 
 /* Camera check result: a few huge white words on black, no frame, so it
    can't be mistaken for a cue and can be read from a few metres away. */
-#session.result #message { font-size: min(8.5vw, 11vh); line-height: 1.25; }
+#session.result #message,
+#session.instruction #message { font-size: min(8.5vw, 11vh); line-height: 1.25; }
 .plain-button[hidden] { display: none; }
 
 /* Results list after a session: one block per rep. */

@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.11 — 2026-10-25
+
+### Tuning test and Copy results (for tuning the Camera check)
+- New **Tuning test** button on the Home screen: 12 fixed reps, always with the camera. Before each rep the screen says in big words what to do (e.g. "DO: BIG STEP RIGHT, FOREHAND") for 5 s, then the beep and cue follow as usual.
+- Reps 1–8 are correct moves (big / small step, left / right, forward / back, forehand / backhand). Reps 9–12 are mistakes on purpose (only a small step, wrong swing, no step and no swing, staying out), which the camera should catch.
+- The Camera results list shows what each rep **asked** for, and has a **Copy results** button: it copies the whole list, plus the numbers behind each reading, to paste into a chat.
+- iPhone tips: place the phone **sideways** for the Camera check (more room for wide moves).
+
 ## v1.10 — 2026-10-24
 
 ### Camera check: readable from where you stand

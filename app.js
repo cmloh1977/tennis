@@ -284,9 +284,10 @@ function waitExactly(seconds) {
   return new Promise(resolve => setTimeout(resolve, seconds * 1000));
 }
 
-// Neutral screen, random wait, beep, gap, cue. Used by all three modes.
-// Returns the shot that was cued (nothing if the session was ended).
-async function serveRep(run, gapSeconds) {
+// Neutral screen, random wait, beep, gap, cue. Used by all three modes and
+// the Tuning test (which passes its own shot). Returns the shot that was
+// cued (nothing if the session was ended).
+async function serveRep(run, gapSeconds, fixedShot = null) {
   showScreen('neutral');
   await wait(randomBetween(TIMING.minWaitSeconds, TIMING.maxWaitSeconds));
   if (run.stopped) return;
@@ -295,7 +296,7 @@ async function serveRep(run, gapSeconds) {
   await waitExactly(gapSeconds);
   if (run.stopped) return;
 
-  const shot = pickShot();
+  const shot = fixedShot || pickShot();
   showCue(shot);
   return shot;
 }
@@ -359,20 +360,24 @@ async function rest(run, nextSet) {
 
 const repForMode = { return: returnRep, volley: volleyRep, rally: rallyRep };
 
-async function runSession() {
-  const run = { stopped: false };
+// The Tuning test runs its own fixed reps: one set, no rest.
+async function runSession(tuning = false) {
+  const run = { stopped: false, tuning };
   currentRun = run;
   messageText.textContent = '';
-  const doRep = repForMode[mode];
+  const doRep = tuning ? tuningRep : repForMode[mode];
+  const sets = tuning ? 1 : settings.sets;
+  const reps = tuning ? TUNING_REPS.length : settings.repsPerSet;
 
-  for (let set = 1; set <= settings.sets; set++) {
-    for (let rep = 1; rep <= settings.repsPerSet; rep++) {
+  for (let set = 1; set <= sets; set++) {
+    for (let rep = 1; rep <= reps; rep++) {
       Object.assign(run, { set, rep });
-      statusText.textContent = `Set ${set}/${settings.sets} · Rep ${rep}/${settings.repsPerSet}`;
+      statusText.textContent = tuning ? `Tuning test · Rep ${rep}/${reps}`
+        : `Set ${set}/${sets} · Rep ${rep}/${reps}`;
       await doRep(run);
       if (run.stopped) return;
     }
-    if (set < settings.sets) {
+    if (set < sets) {
       await rest(run, set + 1);
       if (run.stopped) return;
     }
@@ -399,8 +404,10 @@ function endSession() {
 }
 
 // iPhones only allow sound after a tap, so sound is switched on here.
-startButton.addEventListener('click', async () => {
+// Start and Tuning test both come here. withCamera: start the camera too.
+async function start(withCamera, tuning = false) {
   startButton.disabled = true;
+  tuningButton.disabled = true;
   // Ask to keep the screen awake straight away, while the tap still counts.
   keepAwake();
   loadStatus.textContent = 'Loading sounds…';
@@ -413,27 +420,35 @@ startButton.addEventListener('click', async () => {
     audio = null;
     allowSleep();
     startButton.disabled = false;
+    tuningButton.disabled = false;
     return;
   }
-  // Camera check: Return and Volley only (rally cues come too fast).
-  if (settings.cameraCheck && mode !== 'rally') {
+  if (withCamera) {
     checkLog.length = 0;
     cameraUse = 'session';
     try {
       await startCamera(text => { loadStatus.textContent = text; });
       loadStatus.textContent = '';
     } catch (err) {
-      loadStatus.textContent = `${err.message}\nOr turn off Camera check in Settings.`;
+      loadStatus.textContent = tuning ? err.message
+        : `${err.message}\nOr turn off Camera check in Settings.`;
       allowSleep();
       startButton.disabled = false;
+      tuningButton.disabled = false;
       return;
     }
   }
   startButton.disabled = false;
+  tuningButton.disabled = false;
   homeScreen.hidden = true;
   sessionScreen.hidden = false;
-  runSession();
-});
+  runSession(tuning);
+}
+
+const tuningButton = document.getElementById('open-tuning');
+// Camera check: Return and Volley only (rally cues come too fast).
+startButton.addEventListener('click', () => start(settings.cameraCheck && mode !== 'rally'));
+tuningButton.addEventListener('click', () => start(true, true));
 
 endButton.addEventListener('click', endSession);
 
@@ -819,6 +834,7 @@ const samples = [];
 // Every rep's full result, shown in the results list after the session.
 // Kept until the next session with Camera check starts.
 const checkLog = [];
+let checkLogPicture = '';   // 'sideways' or 'upright' camera picture
 
 function recordSample(body, time) {
   const seen = body && [LEFT_SHOULDER, RIGHT_SHOULDER, LEFT_HIP, RIGHT_HIP]
@@ -891,6 +907,10 @@ function analyseRep(cueTime, now) {
     depth: furthest(depth),
     swing,
     homeAt: swing ? findHome(sideways, depth, times, swing.at) : null,
+    // For tuning: how far the wrist reached on each side of the chest, and
+    // how close the hips came back to the start spot after the swing.
+    reach: { right: Math.max(0, ...across), left: Math.max(0, ...across.map(v => -v)) },
+    closestHome: swing ? Math.min(...sideways.filter((_, i) => times[i] >= swing.at).map(Math.abs)) : null,
   };
 }
 
@@ -946,17 +966,18 @@ function readings(result) {
   };
 }
 
-function cueName(shot) {
-  const depth = shot.length || (settings.shortDeep ? 'neutral' : '');
+function cueName(shot, withDepth) {
+  const depth = shot.length || (withDepth ? 'neutral' : '');
   return `${shot.side} ${shot.placement}${depth ? ' ' + depth : ''}`;
 }
 
 // A few huge words, readable from a few metres away during play.
-function bigResult(result) {
+// withDepth: also say whether you stepped forward or back.
+function bigResult(result, withDepth) {
   if (!result) return 'CAN’T SEE YOU';
   const r = readings(result);
   const lines = [r.stayed ? 'NO SIDE STEP' : `${r.big ? 'BIG' : 'SMALL'} STEP ${r.side.toUpperCase()}`];
-  if (settings.shortDeep) {
+  if (withDepth) {
     lines.push({ same: 'SAME DEPTH', closer: 'STEP FORWARD', further: 'STEP BACK' }[r.depth]);
   }
   if (!result.swing) {
@@ -969,8 +990,8 @@ function bigResult(result) {
 }
 
 // All the details, for the results list after the session.
-function describeResult(shot, result) {
-  const lines = [`Cue: ${cueName(shot)}`];
+function describeResult(shot, result, withDepth) {
+  const lines = [`Cue: ${cueName(shot, withDepth)}`];
   if (!result) {
     lines.push('Couldn’t see you');
     return lines.join('\n');
@@ -994,8 +1015,8 @@ function seconds(time) { return ((time - cueShownAt) / 1000).toFixed(1); }
 
 // After a Return or Volley cue: keep watching until you are back home after
 // your swing (at most maxWatchSeconds after the cue), then show what the
-// camera saw.
-async function showCheck(run, shot) {
+// camera saw. asked = what the Tuning test told you to do.
+async function showCheck(run, shot, asked = null) {
   if (!shot || cameraUse !== 'session' || run.stopped) return;
   showScreen('neutral');
   const end = cueShownAt + CAMERA.maxWatchSeconds * 1000;
@@ -1004,11 +1025,67 @@ async function showCheck(run, shot) {
     if (run.stopped) return;
   }
   const result = analyseRep(cueShownAt, Math.min(performance.now(), end));
-  checkLog.push({ label: `Set ${run.set} · Rep ${run.rep}`, details: describeResult(shot, result) });
-  messageText.textContent = bigResult(result);
+  const withDepth = settings.shortDeep || run.tuning;
+  checkLogPicture = cameraVideo.videoWidth > cameraVideo.videoHeight ? 'sideways' : 'upright';
+  checkLog.push({
+    label: run.tuning ? `Rep ${run.rep}` : `Set ${run.set} · Rep ${run.rep}`,
+    details: (asked ? `Asked: ${asked.join(', ').toLowerCase()}\n` : '') + describeResult(shot, result, withDepth),
+    numbers: rawNumbers(result),
+  });
+  messageText.textContent = bigResult(result, withDepth);
   showScreen('result');
   await wait(CAMERA.resultSeconds);
   messageText.textContent = '';
+}
+
+// The numbers behind the readings, for tuning the limits in CAMERA.
+// Only in the copied text, not on screen.
+function rawNumbers(result) {
+  if (!result) return 'Numbers: none (not seen)';
+  const n = v => (v >= 0 ? '+' : '') + v.toFixed(2);
+  return `Numbers: side ${n(result.sideways)}, depth ${n(result.depth)}, `
+    + `wrist reach R ${result.reach.right.toFixed(2)} / L ${result.reach.left.toFixed(2)}, `
+    + `closest home ${result.closestHome === null ? '-' : result.closestHome.toFixed(2)}`;
+}
+
+// ---------- Tuning test ----------
+// A fixed list of 12 reps for tuning the Camera check. Before each rep the
+// screen says what to do (always the same, so nothing has to be remembered).
+// Reps 1-8 are correct moves; 9-12 are mistakes made on purpose, which the
+// camera should catch. Written for right-handed; left-handed swaps the words
+// LEFT and RIGHT (the cues already swap by themselves).
+const TUNING_REPS = [
+  { side: 'forehand', placement: 'wide', length: null,    asked: ['BIG STEP RIGHT', 'FOREHAND'] },
+  { side: 'backhand', placement: 'wide', length: null,    asked: ['BIG STEP LEFT', 'BACKHAND'] },
+  { side: 'forehand', placement: 'body', length: null,    asked: ['SMALL STEP LEFT', 'FOREHAND'] },
+  { side: 'backhand', placement: 'body', length: null,    asked: ['SMALL STEP RIGHT', 'BACKHAND'] },
+  { side: 'forehand', placement: 'wide', length: 'short', asked: ['BIG STEP RIGHT', 'STEP FORWARD', 'FOREHAND'] },
+  { side: 'backhand', placement: 'wide', length: 'deep',  asked: ['BIG STEP LEFT', 'STEP BACK', 'BACKHAND'] },
+  { side: 'forehand', placement: 'body', length: 'short', asked: ['SMALL STEP LEFT', 'STEP FORWARD', 'FOREHAND'] },
+  { side: 'backhand', placement: 'body', length: 'deep',  asked: ['SMALL STEP RIGHT', 'STEP BACK', 'BACKHAND'] },
+  { side: 'forehand', placement: 'wide', length: null,    asked: ['ONLY A SMALL', 'STEP RIGHT', 'FOREHAND'] },
+  { side: 'backhand', placement: 'wide', length: null,    asked: ['BIG STEP LEFT', 'BUT FOREHAND'] },
+  { side: 'forehand', placement: 'body', length: null,    asked: ['NO STEP', 'NO SWING'] },
+  { side: 'forehand', placement: 'wide', length: null,    asked: ['BIG STEP RIGHT', 'FOREHAND', 'STAY OUT'] },
+];
+const TUNING_DO_SECONDS = 5;   // how long "DO: ..." shows before each rep
+
+function tuningWords(lines) {
+  if (settings.handedness === 'right') return lines;
+  return lines.map(line => line.replace(/RIGHT|LEFT/, side => (side === 'RIGHT' ? 'LEFT' : 'RIGHT')));
+}
+
+async function tuningRep(run) {
+  const item = TUNING_REPS[run.rep - 1];
+  const asked = tuningWords(item.asked);
+  messageText.textContent = ['DO:', ...asked].join('\n');
+  showScreen('instruction');
+  await wait(TUNING_DO_SECONDS);
+  messageText.textContent = '';
+  if (run.stopped) return;
+  const shot = await serveRep(run, settings.gapSeconds, item);
+  await wait(TIMING.cueSeconds);
+  await showCheck(run, shot, asked);
 }
 
 // ---------- Results list (after a session with Camera check) ----------
@@ -1035,6 +1112,28 @@ document.getElementById('close-results').addEventListener('click', () => {
   homeScreen.hidden = false;
 });
 openResultsButton.addEventListener('click', showResults);
+
+// Copies the whole list as text, to paste into a chat or a note.
+const copyResultsButton = document.getElementById('copy-results');
+copyResultsButton.addEventListener('click', async () => {
+  const version = document.querySelector('.version').textContent;
+  const text = [`Tennis trainer camera results · ${version} · ${settings.handedness}-handed · `
+    + `${checkLogPicture} picture`,
+    ...checkLog.map(entry => `${entry.label}\n${entry.details}\n${entry.numbers}`)].join('\n\n');
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (err) {
+    // Older browsers: copy from a hidden text box instead.
+    const box = document.createElement('textarea');
+    box.value = text;
+    document.body.append(box);
+    box.select();
+    document.execCommand('copy');
+    box.remove();
+  }
+  copyResultsButton.textContent = 'Copied!';
+  setTimeout(() => { copyResultsButton.textContent = 'Copy results'; }, 2000);
+});
 
 document.getElementById('open-camera').addEventListener('click', openCamera);
 document.getElementById('close-camera').addEventListener('click', closeCamera);
