@@ -2,7 +2,7 @@
 
 A web app for shadow-swing practice. It gives random cues so the player reacts instead of planning the next stroke. Used outdoors on a rooftop, with an iPhone or iPad placed a few metres in front of the player.
 
-Current version: **2.3** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
+Current version: **2.4** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
 
 ## Working style (important)
 
@@ -114,6 +114,7 @@ The last-used mode is remembered.
 | Rest between sets | 10 s – 3 min | 1 min |
 | Sound / screen sync | −150 to +150 ms | 0 |
 | Camera check (Return / Volley) | Off / On | Off |
+| Result → next serve (shown only with Camera check) | 0.5 – 5 s | 1.2 s |
 
 - Defined in `DEFAULT_SETTINGS` and `SLIDERS` in `app.js`. Fixed timings (wait range, cue length, volley factor, tick lead, rally shot range, STOP length) are in `TIMING`.
 - Saved in `localStorage` under `tennis-trainer-v1` (settings + mode), wrapped in try/catch. "Reset to defaults" button.
@@ -173,7 +174,7 @@ The last-used mode is remembered.
 - `judge(shot, result)` → `{ pass, reason }` in this order: no result → `pass: null` "CAN'T SEE YOU" (black `result` screen, not counted); NO STEP (under `minMove`); WRONG WAY (wide = toward the side the cue points to, body = the other way); NO SWING; WRONG SWING (`strokeSeen()` differs from the cue);; NOT BACK (no `homeAt` within `maxWatchSeconds`, **4 s**, the user's choice). Otherwise pass with time = `homeAt − cueShownAt`.
 - **Swing judging since v2.2:** `strokeSeen(shot, result)`: the cue's stroke counts as seen if a sweep in its direction is ≥ `swingShare` (0.8) of the biggest sweep. A v2.1 session (10 wide forehands) showed the pattern run-lag (−) → **looped backswing** (+, rising 0.6–1.1) → flat forehand (−, rise −0.7..+0.6) → recovery (+), so the "biggest rise" rule (v1.15–v2.1, `pickSwing`, removed) called 7/10 backhand. Across all data, correct strokes' sweeps the cue's way were 86–100% of the biggest, deliberate wrong swings 53–65%. `swing` in `analyseRep()` is now just `{ at }` of the last big sweep (for NO SWING and for "back home only after the stroke").
 - `start()` warns once if the camera picture is upright (`uprightWarnedAt`; a second tap within 60 s starts anyway). That v2.1 session said "upright picture" though the user held the phone sideways: likely Auto-rotate off on the Pixel, so the app and camera picture stayed upright; wide moves then left the picture (side 5.9 / 7.9, no swing).
-- Screens: `pass` = green `#00c400`, black text, huge time (`.verdict-time`); `fail` = red `#e00000`, white reason word. Full colour, no white frame. It only flashes for `resultSeconds` (0.5 s since v2.3; 4 s in v2.0, 1 s in v2.1) and the next rep's random wait is `nextMinWaitSeconds`–`nextMaxWaitSeconds` (0.5–1 s since v2.3, via `run.afterCard`) instead of 3–5 s: the user wants a quick rhythm, card to next beep about 1–1.5 s. The first rep of a set keeps the normal wait.
+- Screens: `pass` = green `#00c400`, black text, huge time (`.verdict-time`); `fail` = red `#e00000`, white reason word. Full colour, no white frame. Since v2.4 the user picks the time from card to next beep with the **Result → next serve** slider (`nextServeSeconds`, 0.5–5 s, default 1.2): half is the card (≤ `maxCardSeconds` 2 s), the rest the next rep's wait (`run.nextWait`, ± `waitSpread` 25%, via `run.afterCard`) instead of 3–5 s. History: card 4 s (v2.0) → 1 s + 1–2 s wait (v2.1) → 0.5 s + 0.5–1 s (v2.3); the user wants a quick rhythm. The first rep of a set keeps the normal wait.
 - Results list: `resultsSummary()` on top ("x of y passed · average · best"), each entry starts with PASS / FAIL / Not judged and has a green / red edge. Copy results includes the summary.
 - The Tuning test is judged too (reps 1–4 should be green, 5–8 red).
 

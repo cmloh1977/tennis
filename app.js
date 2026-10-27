@@ -15,6 +15,7 @@ const DEFAULT_SETTINGS = {
   restSeconds: 60,
   syncOffsetMs: 0,         // + shows the screen later, - plays the voice later
   cameraCheck: false,      // watch with the camera and show what it saw (Return/Volley)
+  nextServeSeconds: 1.2,   // Camera check: from the green / red card to the next beep
 };
 
 // Fixed timings (not on the Settings screen).
@@ -48,6 +49,9 @@ const SLIDERS = [
     show: v => (v === 1 ? '1 set' : `${v} sets`) },
   { key: 'restSeconds', label: 'Rest between sets', min: 10, max: 180, step: 10,
     show: v => formatClock(v) },
+  { key: 'nextServeSeconds', label: 'Result → next serve', min: 0.5, max: 5, step: 0.1,
+    show: v => `about ${v.toFixed(1)} s from the card to the next beep`,
+    hint: 'Half of it shows the green / red card (at most 2 s), the rest is a short random wait.' },
   { key: 'syncOffsetMs', label: 'Sound / screen sync', min: -150, max: 150, step: 10,
     show: v => (v === 0 ? 'no adjustment'
       : v > 0 ? `screen ${v} ms later` : `voice ${-v} ms later`),
@@ -253,9 +257,10 @@ function waitExactly(seconds) {
 async function serveRep(run, gapSeconds, fixedShot = null) {
   showScreen('neutral');
   // Right after a Camera check card you're already back home and ready, so
-  // the wait is shorter. Still random, so the beep can't be timed.
+  // the wait is the rest of the "Result → next serve" time. Still a little
+  // random, so the beep can't be timed.
   const [minWait, maxWait] = run.afterCard
-    ? [CAMERA.nextMinWaitSeconds, CAMERA.nextMaxWaitSeconds]
+    ? [run.nextWait * (1 - CAMERA.waitSpread), run.nextWait * (1 + CAMERA.waitSpread)]
     : [TIMING.minWaitSeconds, TIMING.maxWaitSeconds];
   run.afterCard = false;
   await wait(randomBetween(minWait, maxWait));
@@ -516,10 +521,15 @@ for (const button of voiceButtons) {
 // Camera check on/off.
 const cameraCheckButtons = document.querySelectorAll('.camera-check-button');
 
+// Its "Result → next serve" slider sits just below and only shows when it's on.
+const nextServeRow = sliderInputs.nextServeSeconds.row;
+document.getElementById('camera-check-toggle').after(nextServeRow);
+
 function showCameraCheck() {
   for (const button of cameraCheckButtons) {
     button.classList.toggle('selected', button.dataset.on === String(settings.cameraCheck));
   }
+  nextServeRow.hidden = !settings.cameraCheck;
 }
 
 for (const button of cameraCheckButtons) {
@@ -768,10 +778,11 @@ const CAMERA = {
   startSeconds: 0.5,       // where the hips are this long before the cue = start spot
   maxWatchSeconds: 4,      // back home within this time = pass (the user's choice; it was
                            // 8 s for tuning). The result shows by then at the latest.
-  resultSeconds: 0.5,      // how long the green / red card flashes (4 s, then 1 s, broke
-                           // the rhythm)
-  nextMinWaitSeconds: 0.5, // after a card, a shorter random wait before the next beep:
-  nextMaxWaitSeconds: 1,   // you're already back home and ready (normally 3-5 s)
+  // Card and wait come from the "Result → next serve" setting: half of it is
+  // the card (at most maxCardSeconds), the rest the wait before the next beep,
+  // ± waitSpread of it at random.
+  maxCardSeconds: 2,
+  waitSpread: 0.25,
   minVisibility: 0.5,      // how sure the tracker must be that it sees a body point
   minSamples: 3,           // fewer pictures than this = "Couldn't see you"
   // Limits in shoulder widths. First Tuning test (v1.11): small steps read
@@ -1047,9 +1058,11 @@ async function showCheck(run, shot, asked = null) {
     messageText.textContent = verdict.reason;
     showScreen(verdict.pass === null ? 'result' : 'fail');
   }
-  await wait(CAMERA.resultSeconds);
+  const cardSeconds = Math.min(CAMERA.maxCardSeconds, settings.nextServeSeconds / 2);
+  await wait(cardSeconds);
   messageText.textContent = '';
   run.afterCard = true;
+  run.nextWait = settings.nextServeSeconds - cardSeconds;
 }
 
 // The numbers behind the readings, for tuning the limits in CAMERA.

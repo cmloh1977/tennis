@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.4 — 2026-10-28
+
+### Choose how quickly the next serve comes
+- New **Result → next serve** slider in Settings, just below Camera check (shown only when it's on): **0.5 s to 5 s**, default 1.2 s.
+- Half of the time shows the green / red card (at most 2 s); the rest is the wait before the next beep, a little random (±25%) so the beep can't be timed.
+- The first rep of each set still has the normal 3–5 s wait. Saved on the phone; "Reset to defaults" sets it back to 1.2 s.
+
 ## v2.3 — 2026-10-28
 
 ### Even quicker rhythm
