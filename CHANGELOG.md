@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.15 — 2026-10-28
+
+### Camera check: the swing goes low to high
+- From the fourth Tuning test (6 of 8): two forehands read as backhands. A stroke has three arm movements across the body (backswing, swing, recovery), and the backswing can be almost as big as the swing, so choosing by size or order wasn't reliable.
+- Now the swing is the sweep in which the **hitting wrist rises the most** (at least 0.2 shoulder widths): a real forehand or backhand goes low to high. If no sweep rises, the previous rule is used.
+- Copy results shows each sweep's rise, so the rule can be checked against real strokes.
+
 ## v1.14 — 2026-10-28
 
 ### Camera check: better choice of which sweep is the swing

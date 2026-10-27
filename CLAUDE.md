@@ -2,7 +2,7 @@
 
 A web app for shadow-swing practice. It gives random cues so the player reacts instead of planning the next stroke. Used outdoors on a rooftop, with an iPhone or iPad placed a few metres in front of the player.
 
-Current version: **1.14** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
+Current version: **1.15** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
 
 ## Working style (important)
 
@@ -164,6 +164,8 @@ The last-used mode is remembered.
 - The user can keep about 3 moves in mind at once; the "DO:" screen before each rep means nothing has to be memorised, and they just paste the copied results (no extra report needed).
 - **Round 2 (v1.12 → v1.13)**, sideways, 8 reps: 7 of 8 correct. Real steps 1.55–3.1, no step 0.24; wrong direction, wrong swing, no step and stay out all caught. Only miss: rep 8 (stay out) read a forehand as backhand, because "biggest sweep" picked the arm coming back (+2.27). → `findSweeps()` lists every sweep that crosses the chest centre (starts ≥ `swingStart` 0.3 on one side, ends on the other, ≥ `swingTravel` 0.8 within 0.6 s); the **first** is the swing (`swingOf()`). Copy results lists all sweeps with times.
 - **Round 3 (v1.13 → v1.14)**, 8 reps: rep 8 fixed, but both backhands (reps 2, 4) read as forehand: the backhand backswing crosses the body too (−1.15, −1.24) and came first; the real backhands were +2.69, +1.86. → `pickSwing()`: the biggest sweep, unless an earlier one is ≥ `swingEarlierShare` (0.8) of it. Backswings were 43–67% of the swing, rep 8's forehand 90% of the arm-back. Replayed on round 3's sweep lists: 8/8 correct. Margins are modest, so confirm with another round.
+- **Round 4 (v1.14 → v1.15)**, 8 reps: 6/8. Forehands in reps 1 and 8 read as backhand: sweeps −1.24, **+1.92**, −2.02, +0.88 and −1.58, **+2.30**, −2.20, +1.25 — the backswing crossed the body and was nearly as big as the forehand. Size/order rules can't separate backswing, swing and recovery. → `pickSwing()` now takes the sweep with the biggest wrist **rise** (≥ `swingRise` 0.2; height = wrist above the shoulders in shoulder widths), falling back to the old rule. Copy results shows each sweep's rise, so other rules can be checked offline against the next round. Fallback idea if swing type stays unreliable: v2.0 judges step direction + "a swing happened" + back-home time only.
+- **The user plays a one-handed backhand** (right-handed). The hitting (right) wrist does the whole backhand; its take-back crosses the body to the left.
 - **What counts as correct (the user's rule):** the *direction* of the step, not its size. Wide = step toward the ball, any size (a small step on a wide ball is just a less wide ball, not a mistake). Body = a small step away to make room; no step on a body ball is a mistake. `bigMove` only labels big/small in the results list.
 - Tuning process: user runs the Tuning test sideways, pastes the copied text, we set each limit between the correct reps (1–4) and the mistakes (5–8), explain the change, publish, and repeat until reps 1–4 read correctly and 5–8 are caught.
 - Next (not built yet): step 3 = green pass (with the back-home time) / red fail, once the readings match reality. Version 2.0.

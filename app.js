@@ -757,9 +757,10 @@ const CAMERA = {
   swingTravel: 0.8,        // travels at least this far (missed wide forehands swept
                            // 1.5-2.1, no swing 0.35)
   swingSeconds: 0.6,       // within this time
-  swingEarlierShare: 0.8,  // the swing is the biggest sweep, unless an earlier one is at
-                           // least this share of it (backhand backswings were 43-67% of
-                           // the swing; a forehand followed by a bigger arm-back was 90%)
+  swingRise: 0.2,          // the swing goes low to high: the sweep whose wrist rises the
+                           // most, at least this much (shoulder widths)
+  swingEarlierShare: 0.8,  // if no sweep rises: the biggest sweep, unless an earlier one
+                           // is at least this share of it
   homeDistance: 0.33,      // back home: hips this close to the start spot sideways
   homeHoldSeconds: 0.2,    // and staying there this long
   keepSeconds: 10,         // forget body positions older than this
@@ -830,9 +831,12 @@ function analyseRep(cueTime, now) {
   const sideways = smooth(after.map(s => (s.hips.x - start.x) * start.rightward / start.shoulderWidth));
   // Hitting wrist across the body: + = on the player's right of the chest centre
   const across = smooth(after.map(s => (s.wrist.x - s.shoulders.x) * start.rightward / start.shoulderWidth), 1);
+  // Hitting wrist height: + = above the shoulders, in shoulder widths
+  const height = smooth(after.map(s => (s.shoulders.y - s.wrist.y) / start.shoulderWidth), 1);
   const times = after.map(s => s.time);
 
-  const sweeps = findSweeps(across, times);
+  const sweeps = findSweeps(across, times)
+    .map(w => ({ ...w, rise: height[w.end] - height[w.start] }));
   const swing = sweeps.length ? swingOf(pickSwing(sweeps)) : null;
   return {
     sideways: furthest(sideways),
@@ -861,7 +865,7 @@ function findSweeps(across, times) {
       const travel = across[j] - across[k];
       if (Math.sign(across[j]) === -Math.sign(across[k]) && Math.abs(travel) >= CAMERA.swingTravel
           && (!best || Math.abs(travel) > Math.abs(best.travel))) {
-        best = { travel, at: times[j], seconds: (times[j] - times[k]) / 1000, end: j };
+        best = { travel, at: times[j], seconds: (times[j] - times[k]) / 1000, start: k, end: j };
       }
     }
     return best;
@@ -885,11 +889,15 @@ function findSweeps(across, times) {
   return sweeps;
 }
 
-// Which sweep is the swing. "The biggest" alone picked the arm coming back
-// after a forehand (v1.12); "the first" alone picked a backhand's backswing,
-// which also crosses the body (v1.13). So: the biggest, unless an earlier
-// sweep is nearly as big.
+// Which sweep is the swing. A stroke has a backswing, the swing and a
+// recovery, alternating direction, and the backswing can cross the body too
+// (especially the user's one-handed backhand). Size and order alone got it
+// wrong (v1.12-v1.14), so: the swing goes low to high, and is the sweep in
+// which the wrist rises the most. If none rises, fall back to the biggest
+// sweep, unless an earlier one is nearly as big.
 function pickSwing(sweeps) {
+  const rising = sweeps.filter(w => w.rise >= CAMERA.swingRise);
+  if (rising.length) return rising.reduce((best, w) => (w.rise > best.rise ? w : best));
   const biggest = Math.max(...sweeps.map(w => Math.abs(w.travel)));
   return sweeps.find(w => Math.abs(w.travel) >= CAMERA.swingEarlierShare * biggest);
 }
@@ -1001,7 +1009,7 @@ function rawNumbers(result) {
   const n = v => (v >= 0 ? '+' : '') + v.toFixed(2);
   // Every sweep: size, and when it ended after the cue (pickSwing() chose the swing).
   const swing = result.sweeps.length
-    ? 'sweeps ' + result.sweeps.map(w => `${n(w.travel)} in ${w.seconds.toFixed(2)} s at ${seconds(w.at)} s`).join(', ')
+    ? 'sweeps ' + result.sweeps.map(w => `${n(w.travel)} rise ${n(w.rise)} in ${w.seconds.toFixed(2)} s at ${seconds(w.at)} s`).join(', ')
     : 'sweeps -';
   return `Numbers: side ${n(result.sideways)}, ${swing}, `
     + `wrist reach R ${result.reach.right.toFixed(2)} / L ${result.reach.left.toFixed(2)}, `
