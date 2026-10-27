@@ -742,8 +742,9 @@ function drawCamera(body) {
 // away the phone is.
 const CAMERA = {
   startSeconds: 0.5,       // where the hips are this long before the cue = start spot
-  maxWatchSeconds: 8,      // show the result by then, even if you're not back home
-  resultSeconds: 5,        // how long the big result shows during play
+  maxWatchSeconds: 4,      // back home within this time = pass (the user's choice; it was
+                           // 8 s for tuning). The result shows by then at the latest.
+  resultSeconds: 4,        // how long the green / red screen shows
   minVisibility: 0.5,      // how sure the tracker must be that it sees a body point
   minSamples: 3,           // fewer pictures than this = "Couldn't see you"
   // Limits in shoulder widths. First Tuning test (v1.11): small steps read
@@ -761,6 +762,8 @@ const CAMERA = {
                            // most, at least this much (shoulder widths)
   swingEarlierShare: 0.8,  // if no sweep rises: the biggest sweep, unless an earlier one
                            // is at least this share of it
+  swingClearMargin: 0.25,  // the swing is "unclear" (forehand/backhand not judged) if a
+                           // sweep the other way rises nearly as much, or none rises
   homeDistance: 0.33,      // back home: hips this close to the start spot sideways
   homeHoldSeconds: 0.2,    // and staying there this long
   keepSeconds: 10,         // forget body positions older than this
@@ -895,11 +898,18 @@ function findSweeps(across, times) {
 // wrong (v1.12-v1.14), so: the swing goes low to high, and is the sweep in
 // which the wrist rises the most. If none rises, fall back to the biggest
 // sweep, unless an earlier one is nearly as big.
+// clear: false when the choice is doubtful (Tuning test round 5: rep 8's
+// backswing rose 0.35 against the forehand's 0.38; rep 1 had no rising sweep).
 function pickSwing(sweeps) {
   const rising = sweeps.filter(w => w.rise >= CAMERA.swingRise);
-  if (rising.length) return rising.reduce((best, w) => (w.rise > best.rise ? w : best));
+  if (rising.length) {
+    const best = rising.reduce((top, w) => (w.rise > top.rise ? w : top));
+    const rival = sweeps.filter(w => Math.sign(w.travel) !== Math.sign(best.travel))
+      .some(w => w.rise >= best.rise - CAMERA.swingClearMargin);
+    return { ...best, clear: !rival };
+  }
   const biggest = Math.max(...sweeps.map(w => Math.abs(w.travel)));
-  return sweeps.find(w => Math.abs(w.travel) >= CAMERA.swingEarlierShare * biggest);
+  return { ...sweeps.find(w => Math.abs(w.travel) >= CAMERA.swingEarlierShare * biggest), clear: false };
 }
 
 // From the hitting side to the other side = forehand; the other way =
@@ -940,19 +950,26 @@ function cueName(shot) {
   return `${shot.side} ${shot.placement}`;
 }
 
-// A few huge words, readable from a few metres away during play.
-function bigResult(result) {
-  if (!result) return 'CAN’T SEE YOU';
+// Pass or fail for one rep. The step's direction counts, not its size:
+// wide = toward the ball (the side the cue points to), body = a small step
+// away to make room. Returns { pass, reason }; pass is null when the camera
+// couldn't see you (not counted either way).
+function judge(shot, result) {
+  if (!result) return { pass: null, reason: 'CAN’T SEE YOU' };
   const r = readings(result);
-  // Only the direction counts, so the size isn't shown here.
-  const lines = [r.stayed ? 'NO SIDE STEP' : `STEP ${r.side.toUpperCase()}`];
-  if (!result.swing) {
-    lines.push('NO SWING');
-  } else {
-    lines.push(result.swing.side.toUpperCase());
-    lines.push(result.homeAt ? `BACK IN ${seconds(result.homeAt)} s` : 'NOT BACK');
-  }
-  return lines.join('\n');
+  const ballSide = (shot.side === 'forehand') === (settings.handedness === 'right') ? 'right' : 'left';
+  const stepTo = shot.placement === 'wide' ? ballSide : (ballSide === 'right' ? 'left' : 'right');
+  if (r.stayed) return { pass: false, reason: 'NO STEP' };
+  if (r.side !== stepTo) return { pass: false, reason: 'WRONG WAY' };
+  if (!result.swing) return { pass: false, reason: 'NO SWING' };
+  if (result.swing.clear && result.swing.side !== shot.side) return { pass: false, reason: 'WRONG SWING' };
+  if (!result.homeAt) return { pass: false, reason: 'NOT BACK' };
+  return { pass: true, time: (result.homeAt - cueShownAt) / 1000 };
+}
+
+function verdictText(verdict) {
+  if (verdict.pass) return `PASS ${verdict.time.toFixed(1)} s`;
+  return verdict.pass === null ? 'Not judged: can’t see you' : `FAIL: ${verdict.reason.toLowerCase()}`;
 }
 
 // All the details, for the results list after the session.
@@ -968,7 +985,7 @@ function describeResult(shot, result) {
     lines.push('Swing: none seen');
     lines.push('Back home: no time (no swing)');
   } else {
-    lines.push(`Swing: ${result.swing.side} (at ${seconds(result.swing.at)} s)`);
+    lines.push(`Swing: ${result.swing.side}${result.swing.clear ? '' : ' (unclear, not judged)'} (at ${seconds(result.swing.at)} s)`);
     lines.push(result.homeAt ? `Back home: ${seconds(result.homeAt)} s`
       : `Back home: not within ${CAMERA.maxWatchSeconds} s`);
   }
@@ -979,8 +996,9 @@ function describeResult(shot, result) {
 function seconds(time) { return ((time - cueShownAt) / 1000).toFixed(1); }
 
 // After a Return or Volley cue: keep watching until you are back home after
-// your swing (at most maxWatchSeconds after the cue), then show what the
-// camera saw. asked = what the Tuning test told you to do.
+// your swing (at most maxWatchSeconds after the cue), then show green (pass,
+// with the time) or red (fail, with the reason). asked = what the Tuning test
+// told you to do.
 async function showCheck(run, shot, asked = null) {
   if (!shot || cameraUse !== 'session' || run.stopped) return;
   showScreen('neutral');
@@ -990,14 +1008,24 @@ async function showCheck(run, shot, asked = null) {
     if (run.stopped) return;
   }
   const result = analyseRep(cueShownAt, Math.min(performance.now(), end));
+  const verdict = judge(shot, result);
   checkLogPicture = cameraVideo.videoWidth > cameraVideo.videoHeight ? 'sideways' : 'upright';
   checkLog.push({
     label: run.tuning ? `Rep ${run.rep}` : `Set ${run.set} · Rep ${run.rep}`,
-    details: (asked ? `Asked: ${asked.join(', ').toLowerCase()}\n` : '') + describeResult(shot, result),
+    verdict,
+    details: verdictText(verdict) + '\n' + (asked ? `Asked: ${asked.join(', ').toLowerCase()}\n` : '')
+      + describeResult(shot, result),
     numbers: rawNumbers(result),
   });
-  messageText.textContent = bigResult(result);
-  showScreen('result');
+  // Green with the back-home time, red with the reason, black if not seen.
+  // A full colour and no white frame, so it can't be mistaken for a cue.
+  if (verdict.pass) {
+    messageText.innerHTML = `<span class="verdict-time">${verdict.time.toFixed(1)} s</span>`;
+    showScreen('pass');
+  } else {
+    messageText.textContent = verdict.reason;
+    showScreen(verdict.pass === null ? 'result' : 'fail');
+  }
   await wait(CAMERA.resultSeconds);
   messageText.textContent = '';
 }
@@ -1057,12 +1085,27 @@ async function tuningRep(run) {
 // ---------- Results list (after a session with Camera check) ----------
 const resultsScreen = document.getElementById('results-screen');
 const resultsList = document.getElementById('results-list');
+const resultsSummaryText = document.getElementById('results-summary');
 const openResultsButton = document.getElementById('open-results');
 
+// e.g. "7 of 10 passed · average 2.6 s · best 2.1 s (1 not seen)"
+function resultsSummary() {
+  const judged = checkLog.filter(e => e.verdict.pass !== null);
+  const times = checkLog.filter(e => e.verdict.pass).map(e => e.verdict.time);
+  let text = `${times.length} of ${judged.length} passed`;
+  if (times.length) {
+    text += ` · average ${(times.reduce((a, b) => a + b, 0) / times.length).toFixed(1)} s`
+      + ` · best ${Math.min(...times).toFixed(1)} s`;
+  }
+  const unseen = checkLog.length - judged.length;
+  return unseen ? `${text} (${unseen} not seen)` : text;
+}
+
 function showResults() {
+  resultsSummaryText.textContent = resultsSummary();
   resultsList.replaceChildren(...checkLog.map(entry => {
     const row = document.createElement('div');
-    row.className = 'result-entry';
+    row.className = 'result-entry' + (entry.verdict.pass ? ' passed' : entry.verdict.pass === false ? ' failed' : '');
     const label = document.createElement('strong');
     label.textContent = entry.label;
     row.append(label, '\n' + entry.details);
@@ -1085,6 +1128,7 @@ copyResultsButton.addEventListener('click', async () => {
   const version = document.querySelector('.version').textContent;
   const text = [`Tennis trainer camera results · ${version} · ${settings.handedness}-handed · `
     + `${checkLogPicture} picture`,
+    resultsSummary(),
     ...checkLog.map(entry => `${entry.label}\n${entry.details}\n${entry.numbers}`)].join('\n\n');
   try {
     await navigator.clipboard.writeText(text);

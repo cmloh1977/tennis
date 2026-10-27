@@ -245,6 +245,22 @@ input[type="range"]::-webkit-slider-thumb {
   white-space: pre-line;
 }
 
+/* Camera check verdict: green = pass (with the back-home time), red = fail
+   (with the reason). Full colour, no white frame, so it can't be mistaken
+   for a cue. Green and red are used nowhere else during play. */
+#session.pass { background: #00c400; color: #000; }
+#session.fail { background: #e00000; color: #fff; }
+#session.pass #message, #session.fail #message { font-size: min(12vw, 16vh); line-height: 1.2; }
+#session.pass .verdict-time { font-size: min(30vw, 45vh); }
+#session.pass #status, #session.fail #status { visibility: hidden; }
+#session.pass .end-button { color: #000; border-color: #000; }
+#session.fail .end-button { color: #fff; border-color: #fff; }
+
+/* Results list: summary on top, and a coloured edge for pass / fail. */
+#results-summary { font-size: 1.3rem; font-weight: 700; margin: 8px 0 12px; }
+.result-entry.passed { border-left: 8px solid #00c400; padding-left: 12px; }
+.result-entry.failed { border-left: 8px solid #e00000; padding-left: 12px; }
+
 /* Rest between sets: a huge countdown. */
 #session.rest #message { font-size: 30vw; line-height: 1.1; }
 

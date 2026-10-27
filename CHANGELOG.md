@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.0 — 2026-10-28
+
+### Pass / fail with the camera ([Issue #4](https://github.com/cmloh1977/tennis/issues/4) done)
+- With **Camera check** on, every Return or Volley rep now ends with a **green screen and your time** (from the cue until you're back home) or a **red screen with the reason**: WRONG WAY, NO STEP, WRONG SWING, NO SWING or NOT BACK. If the camera couldn't see you it says CAN'T SEE YOU on black, which doesn't count either way.
+- A pass needs: a step the right way (wide = toward the ball, any size; body = a small step away to make room), a swing, the right swing (forehand / backhand), and being **back home within 4 s** of the cue.
+- If the camera isn't sure whether it saw a forehand or a backhand, the swing type isn't judged, so a doubtful reading can't turn the screen red. The results list marks it "unclear".
+- The **results list** starts with a summary, e.g. "7 of 10 passed · average 2.6 s · best 2.1 s", and shows PASS / FAIL for every rep (also in Copy results).
+- The **Tuning test** shows green / red too: reps 1–4 should be green, 5–8 red.
+- Tuned over five Tuning test rounds (v1.11–v1.15); the last round read all 8 reps correctly.
+
 ## v1.15 — 2026-10-28
 
 ### Camera check: the swing goes low to high

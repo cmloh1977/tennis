@@ -2,7 +2,7 @@
 
 A web app for shadow-swing practice. It gives random cues so the player reacts instead of planning the next stroke. Used outdoors on a rooftop, with an iPhone or iPad placed a few metres in front of the player.
 
-Current version: **1.15** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
+Current version: **2.0** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
 
 ## Working style (important)
 
@@ -60,7 +60,7 @@ All parts of a cue (triangles + white frame appearing, voice) fire at **the same
 | Forehand | black, white triangles, white frame | triangles pointing right |
 | Backhand | black, white triangles, white frame | triangles pointing left  |
 
-Since v1.3 cues have no background colour (Issue #3): the triangles appearing on the black screen is the signal. Since v1.4 a thick white frame (inset `box-shadow`, 4vmin) appears around the screen edge with every cue, so the change is easier to catch in sunlight. Green and red are kept free for v2 pass/fail screens.
+Since v1.3 cues have no background colour (Issue #3): the triangles appearing on the black screen is the signal. Since v1.4 a thick white frame (inset `box-shadow`, 4vmin) appears around the screen edge with every cue, so the change is easier to catch in sunlight. Green and red are used only for the Camera check's pass / fail screens (v2.0).
 
 | Placement | Sign (fast-forward style) | Voice |
 |-----------|---------------------------|-------|
@@ -168,7 +168,13 @@ The last-used mode is remembered.
 - **The user plays a one-handed backhand** (right-handed). The hitting (right) wrist does the whole backhand; its take-back crosses the body to the left.
 - **What counts as correct (the user's rule):** the *direction* of the step, not its size. Wide = step toward the ball, any size (a small step on a wide ball is just a less wide ball, not a mistake). Body = a small step away to make room; no step on a body ball is a mistake. `bigMove` only labels big/small in the results list.
 - Tuning process: user runs the Tuning test sideways, pastes the copied text, we set each limit between the correct reps (1–4) and the mistakes (5–8), explain the change, publish, and repeat until reps 1–4 read correctly and 5–8 are caught.
-- Next (not built yet): step 3 = green pass (with the back-home time) / red fail, once the readings match reality. Version 2.0.
+
+### Pass / fail (v2.0, issue #4 done)
+- `judge(shot, result)` → `{ pass, reason }` in this order: no result → `pass: null` "CAN'T SEE YOU" (black `result` screen, not counted); NO STEP (under `minMove`); WRONG WAY (wide = toward the side the cue points to, body = the other way); NO SWING; WRONG SWING (only if `swing.clear`); NOT BACK (no `homeAt` within `maxWatchSeconds`, **4 s**, the user's choice). Otherwise pass with time = `homeAt − cueShownAt`.
+- `pickSwing()` marks `clear: false` when no sweep rose (fallback used) or a sweep in the other direction rose within `swingClearMargin` (0.25) of the best: then the swing type isn't judged, so a doubtful reading can't fail a rep. Round 5 (v1.15): 8/8 correct; reps 1 (no rise) and 8 (0.35 vs 0.38) would be "unclear".
+- Screens: `pass` = green `#00c400`, black text, huge time (`.verdict-time`); `fail` = red `#e00000`, white reason word. Full colour, no white frame, shown `resultSeconds` (4 s).
+- Results list: `resultsSummary()` on top ("x of y passed · average · best"), each entry starts with PASS / FAIL / Not judged and has a green / red edge. Copy results includes the summary.
+- The Tuning test is judged too (reps 1–4 should be green, 5–8 red).
 
 ## Testing
 
