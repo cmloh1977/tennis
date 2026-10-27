@@ -757,6 +757,9 @@ const CAMERA = {
   swingTravel: 0.8,        // travels at least this far (missed wide forehands swept
                            // 1.5-2.1, no swing 0.35)
   swingSeconds: 0.6,       // within this time
+  swingEarlierShare: 0.8,  // the swing is the biggest sweep, unless an earlier one is at
+                           // least this share of it (backhand backswings were 43-67% of
+                           // the swing; a forehand followed by a bigger arm-back was 90%)
   homeDistance: 0.33,      // back home: hips this close to the start spot sideways
   homeHoldSeconds: 0.2,    // and staying there this long
   keepSeconds: 10,         // forget body positions older than this
@@ -830,7 +833,7 @@ function analyseRep(cueTime, now) {
   const times = after.map(s => s.time);
 
   const sweeps = findSweeps(across, times);
-  const swing = sweeps.length ? swingOf(sweeps[0]) : null;
+  const swing = sweeps.length ? swingOf(pickSwing(sweeps)) : null;
   return {
     sideways: furthest(sideways),
     swing,
@@ -845,9 +848,9 @@ function analyseRep(cueTime, now) {
 
 // Every quick sweep of the hitting wrist across the body, in time order: it
 // starts at least swingStart on one side of the chest centre and ends on the
-// other side, at least swingTravel away, within swingSeconds. The first one
-// is the swing; later ones are e.g. the arm coming back afterwards (in v1.12
-// "the biggest sweep" sometimes picked that one).
+// other side, at least swingTravel away, within swingSeconds. Besides the
+// swing this finds e.g. a backhand's backswing (before) and the arm coming
+// back (after); pickSwing() chooses.
 function findSweeps(across, times) {
   const sweeps = [];
   let i = 0;
@@ -880,6 +883,15 @@ function findSweeps(across, times) {
     }
   }
   return sweeps;
+}
+
+// Which sweep is the swing. "The biggest" alone picked the arm coming back
+// after a forehand (v1.12); "the first" alone picked a backhand's backswing,
+// which also crosses the body (v1.13). So: the biggest, unless an earlier
+// sweep is nearly as big.
+function pickSwing(sweeps) {
+  const biggest = Math.max(...sweeps.map(w => Math.abs(w.travel)));
+  return sweeps.find(w => Math.abs(w.travel) >= CAMERA.swingEarlierShare * biggest);
 }
 
 // From the hitting side to the other side = forehand; the other way =
@@ -987,7 +999,7 @@ async function showCheck(run, shot, asked = null) {
 function rawNumbers(result) {
   if (!result) return 'Numbers: none (not seen)';
   const n = v => (v >= 0 ? '+' : '') + v.toFixed(2);
-  // Every sweep: size, and when it ended after the cue. The first is the swing.
+  // Every sweep: size, and when it ended after the cue (pickSwing() chose the swing).
   const swing = result.sweeps.length
     ? 'sweeps ' + result.sweeps.map(w => `${n(w.travel)} in ${w.seconds.toFixed(2)} s at ${seconds(w.at)} s`).join(', ')
     : 'sweeps -';

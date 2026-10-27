@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.14 — 2026-10-28
+
+### Camera check: better choice of which sweep is the swing
+- From the third Tuning test: both backhands were read as forehands. A backhand's backswing (taking the racket back to the left) also crosses the body, and v1.13 took the *first* sweep.
+- Now the swing is the **biggest** sweep across the body, unless an **earlier** sweep is at least 80% as big (then the earlier one). Backswings were 43–67% of the real backhand; the forehand in the "stay out" rep was 90% of the arm coming back afterwards. Checked against the third test's results: all 8 reps come out right.
+
 ## v1.13 — 2026-10-28
 
 ### Camera check: the swing is the first sweep across the body
