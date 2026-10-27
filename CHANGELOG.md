@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.12 — 2026-10-28
+
+### Short / deep removed, to keep things simple
+- The **Short / deep cues** switch and the Short and Deep sliders are gone. Cues are never tilted: there are 4 cues again (forehand / backhand × wide / body). Old saved short/deep settings are ignored.
+- The Camera check no longer measures stepping forward or back.
+
+### Camera check: the direction of the step is what counts
+- Wide = step toward the ball (any size), body = a small step away to make room. The big result now says **STEP RIGHT**, **STEP LEFT** or **NO SIDE STEP**, then the swing and the back-home time. The size (big / small and the number) is still in the results list.
+- "No side step" is under 0.5 shoulder widths (was 0.25), from the first Tuning test (real steps read 1.45 or more, standing still 0.0).
+- **Swing:** now the biggest fast sweep of the hitting wrist across the body, at least 0.8 shoulder widths within 0.6 s. The old rule needed the wrist to reach well past the chest on both sides, which missed forehands on wide balls.
+- **Watch time:** up to 8 s after the cue (was 6), as back-home times reached 5.6 s.
+- Copy results also gives each swing's sweep size and time.
+
+### Tuning test: 8 reps
+- Reps 1–4 are the 4 correct moves. Reps 5–8 are mistakes on purpose: step the wrong way on a wide forehand, wrong swing, no step on a body forehand (no room made), and staying out.
+
 ## v1.11 — 2026-10-25
 
 ### Tuning test and Copy results (for tuning the Camera check)

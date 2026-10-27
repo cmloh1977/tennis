@@ -2,7 +2,7 @@
 
 A web app for shadow-swing practice. It gives random cues so the player reacts instead of planning the next stroke. Used outdoors on a rooftop, with an iPhone or iPad placed a few metres in front of the player.
 
-Current version: **1.11** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
+Current version: **1.12** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
 
 ## Working style (important)
 
@@ -70,7 +70,7 @@ Since v1.3 cues have no background colour (Issue #3): the triangles appearing on
 - The triangles are solid white SVG shapes (`#arrow` / `#arrow-shape` in `index.html`; `.body-shape` and `.wide-shape`, switched by the `wide` class). **Body and wide use exactly the same triangle shape and size** (the user asked for this); the wide sign fills the screen width minus a black gap inside the white frame (`#arrow` width `calc(100vw - 16vmin)`), so each triangle is slim (46 × 100 in a 100 × 100 frame).
 - A voice says **"wide"** or **"body"** at the same moment the screen changes. In `app.js` this is the shot's `placement`. The **Voice** setting (default On) can turn the voice off, leaving triangles only; beep and tick still play.
 - **Handedness** setting (default: right-handed). Left-handed flips the directions.
-- **Short / deep** (optional, off by default, visual only): three depths since v1.9. Short = sign tilted 45° up (move forward), deep = tilted down (move back), neutral = flat (stay at the same depth): forehand up-right / down-right, backhand up-left / down-left. Left-handed swaps left/right only. The mix comes from the Short and Deep sliders; neutral is the rest (`pickLength()`). In `app.js` this is the shot's `length` (`null` when off or neutral); `ARROW_TILT` rotates the `#arrow-shape` group and switches to a `viewBox` fitted tightly around the tilted wide sign (body uses the same frame so both stay the same size).
+- **Short / deep cues were removed in v1.12** (the user wanted it simpler; the feet/body-length depth reading was also unreliable). Cues are always flat: 4 cues. The old code is in git history (v1.1–v1.11) if it's ever wanted back.
 - Must be readable in **bright sunlight**: pure white on black, huge shapes, high contrast. No subtle greys or thin lines.
 - The neutral screen is black. The status text ("Set 1/3 · Rep 4/10", top left) and the End button (top right) are hidden during cues.
 
@@ -109,9 +109,6 @@ The last-used mode is remembered.
 | Forehand / backhand | 0 – 100% backhand | 50% |
 | Wide / body | 0 – 100% wide | 50% |
 | Voice ("wide" / "body") | Off / On | On |
-| Short / deep cues (switch) | Off / On | Off |
-| Short (shown only when Short / deep is On) | 0 – 100% | 33% |
-| Deep (shown only when On; neutral = the rest) | 0 – 100% | 33% |
 | Reps per set | 1 – 30 | 10 |
 | Sets | 1 – 10 | 3 |
 | Rest between sets | 10 s – 3 min | 1 min |
@@ -119,7 +116,7 @@ The last-used mode is remembered.
 | Camera check (Return / Volley) | Off / On | Off |
 
 - Defined in `DEFAULT_SETTINGS` and `SLIDERS` in `app.js`. Fixed timings (wait range, cue length, volley factor, tick lead, rally shot range, STOP length) are in `TIMING`.
-- Saved in `localStorage` under `tennis-trainer-v1` (settings + mode), wrapped in try/catch. "Reset to defaults" button. Short + Deep are kept ≤ 100% (`keepDepthsUnder100()`); saves from before v1.9 (no `shortPercent`) start on the 33 / 33 defaults.
+- Saved in `localStorage` under `tennis-trainer-v1` (settings + mode), wrapped in try/catch. "Reset to defaults" button.
 - Between sets: big countdown on a black screen, beep 3 s before the next set.
 
 ## iPhone / iPad requirements (Chrome and Safari)
@@ -143,27 +140,30 @@ The last-used mode is remembered.
 
 ### Camera check (step 2a, v1.6)
 - **Camera check** setting (default Off). On = Return and Volley sessions start the camera in the Start tap (Rally never does). If the camera fails, Start stops with a message.
-- `trackFrame()` → `recordSample()` keeps the last 8 s of body positions (hips, shoulder width, torso length, in pixels). `showCue()` sets `cueShownAt` in its paint step.
+- `trackFrame()` → `recordSample()` keeps the last 10 s of body positions (hips, chest centre, hitting wrist, shoulder width, in pixels). `showCue()` sets `cueShownAt` in its paint step.
 - After the cue, `showCheck()` checks `analyseRep(cueShownAt, now)` every 0.1 s and shows the `result` screen (`describeResult()`, 3 s, plain text on black, **no white frame**) as soon as `homeAt` is found, or at `maxWatchSeconds` (6 s; the user found the old fixed 2.5 s came before the end of the swing). The start spot = hips averaged over the 0.5 s before the cue.
-- Sideways = furthest hip move in **shoulder widths** (distance-independent), toward the player's own right/left; which way is "right" in the picture comes from the shoulders, so camera mirroring doesn't matter. Forward/back = change in torso length (shoulders to hips; hardly changes when turning).
-- All limits are in `CAMERA` in `app.js` (stayed < 0.25, big ≥ 1.0, depth "same" < 8%). No pass/fail yet: the user compares results with what they did, and we tune.
+- Sideways = furthest hip move in **shoulder widths** (distance-independent), toward the player's own right/left; which way is "right" in the picture comes from the shoulders, so camera mirroring doesn't matter.
+- All limits are in `CAMERA` in `app.js`. No pass/fail yet: we tune them from Tuning test results (see below).
 - On the Mac the camera is blocked and the hidden pane pauses `requestAnimationFrame`: test with a fake `getUserMedia` (`canvas.captureStream()`), a fake `poseTracker.detectForVideo` that moves a body after `cueShownAt`, and `requestAnimationFrame` swapped for `setTimeout`.
 
 ### Swing and back home (step 2b, v1.8)
 - Each sample also keeps the hitting wrist (from Handedness) and the chest centre. `findSwing()`: the first time the wrist goes from ≥ `swingReach` (0.5 shoulder widths) on one side of the chest centre to ≥ 0.5 on the other within `swingSeconds` (0.6 s). From the hitting side = forehand, otherwise backhand. Its time is when the sweep completes.
-- `findHome()`: first moment after the swing with hips within `homeDistance` (0.33 shoulder widths) sideways and < `minDepthPercent` closer/further, held for `homeHoldSeconds` (0.2 s). Back-home time = that moment − `cueShownAt`. No swing = no time.
+- `findHome()`: first moment after the swing with hips within `homeDistance` (0.33 shoulder widths) sideways, held for `homeHoldSeconds` (0.2 s). Back-home time = that moment − `cueShownAt`. No swing = no time.
 - In the fake-camera test, reset `cueShownAt = 0` between runs, or the fake player starts the next rep where the last one ended.
 
 ### Big result and results list (v1.10)
-- The user couldn't read 6 small lines from a few metres in 3 s. During play `bigResult()` shows 3–4 huge lines for `resultSeconds` (5 s), `font-size: min(8.5vw, 11vh)`: the longest line ("SMALL STEP RIGHT") fits a 375 px wide phone, so keep words this short. Sideways and depth are named separately ("BIG STEP RIGHT", "STEP FORWARD") because "MOVED RIGHT BIG" + "FORWARD" read like one thing. The depth line (STEP FORWARD / SAME DEPTH / STEP BACK) only shows with Short / deep On.
+- The user couldn't read 6 small lines from a few metres in 3 s. During play `bigResult()` shows 2–3 huge lines for `resultSeconds` (5 s), `font-size: min(8.5vw, 11vh)`: STEP RIGHT / STEP LEFT / NO SIDE STEP, then FOREHAND / BACKHAND / NO SWING, then BACK IN x s / NOT BACK. Lines must stay under ~16 characters to fit a 375 px wide phone. Sideways and swing are on separate lines because "MOVED RIGHT BIG" + "FORWARD" once read like one thing.
 - Every rep's full `describeResult()` text goes into `checkLog` (cleared at Start with Camera check). `endSession()` opens `#results-screen` (styled like Settings) when the log has entries; Home shows a **Last camera results** button until the next session.
 
 ### Tuning test and Copy results (v1.11)
 - **Sideways (landscape) is the recommended camera setup**: the user found it gives more room for wide moves. Check camera screens in landscape first.
-- **Tuning test** button (Home): `runSession(true)` runs `TUNING_REPS` (12 fixed shots, one set) with `tuningRep()`: an `instruction` screen ("DO: …", same big style as `result`) for 5 s, then `serveRep()` with the fixed shot, then `showCheck()` with the asked words. Always uses the camera and always shows the depth line. Reps 1–8 correct, 9–12 deliberate mistakes. Left-handed swaps the words LEFT/RIGHT (`tuningWords()`).
+- **Tuning test** button (Home): `runSession(true)` runs `TUNING_REPS` (8 fixed shots, one set) with `tuningRep()`: an `instruction` screen ("DO: …", same big style as `result`) for 5 s, then `serveRep()` with the fixed shot, then `showCheck()` with the asked words. Always uses the camera. Reps 1–4 correct, 5–8 deliberate mistakes (wrong direction on a wide forehand, wrong swing, no step on a body forehand, stay out). Left-handed swaps the words LEFT/RIGHT (`tuningWords()`).
 - `start(withCamera, tuning)` is shared by Start and Tuning test.
-- Results list entries have an "Asked:" line in the Tuning test. **Copy results** copies the list plus `rawNumbers()` (side, depth, wrist reach R/L, closest home after the swing) for tuning `CAMERA`.
-- Tuning process: user runs the Tuning test sideways, pastes the copied text, we set each limit between the correct reps (1–8) and the mistakes (9–12), explain the change, publish, and repeat until reps 1–8 read correctly and 9–12 are caught.
+- Results list entries have an "Asked:" line in the Tuning test. **Copy results** copies the list plus `rawNumbers()` (side, swing sweep size and time, wrist reach R/L, closest home after the swing) for tuning `CAMERA`.
+- **Round 1 (v1.11 → v1.12)**, sideways, right-handed. Small steps read 1.45–2.0, big 2.0–3.9, no step 0.0 → `bigMove` 2.2, `minMove` 0.5. Old swing rule (wrist ≥ 0.5 past the chest on both sides) missed all 3 wide forehands (left reach only 0.24–0.30) → `findSwing()` now takes the biggest sweep ≥ `swingTravel` 0.8 within 0.6 s. Body length (torso) read "closer" on nearly every rep, even step-back ones (bending/turning), so depth was dropped together with short/deep (v1.12). Back-home times 3.9–5.6 s → `maxWatchSeconds` 8. Left/right, backhands, wrong swing, no step and stay out all read correctly.
+- The user can keep about 3 moves in mind at once; the "DO:" screen before each rep means nothing has to be memorised, and they just paste the copied results (no extra report needed).
+- **What counts as correct (the user's rule):** the *direction* of the step, not its size. Wide = step toward the ball, any size (a small step on a wide ball is just a less wide ball, not a mistake). Body = a small step away to make room; no step on a body ball is a mistake. `bigMove` only labels big/small in the results list.
+- Tuning process: user runs the Tuning test sideways, pastes the copied text, we set each limit between the correct reps (1–4) and the mistakes (5–8), explain the change, publish, and repeat until reps 1–4 read correctly and 5–8 are caught.
 - Next (not built yet): step 3 = green pass (with the back-home time) / red fail, once the readings match reality. Version 2.0.
 
 ## Testing

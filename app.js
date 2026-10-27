@@ -10,9 +10,6 @@ const DEFAULT_SETTINGS = {
   backhandPercent: 50,     // forehand/backhand balance
   widePercent: 50,         // wide/body mix
   voice: true,             // say "wide" / "body" (off = triangles only)
-  shortDeep: false,        // tilt the arrow up (short) or down (deep)
-  shortPercent: 33,        // share of short cues (only used when shortDeep is on);
-  deepPercent: 33,         // the rest are neutral (flat arrow)
   repsPerSet: 10,
   sets: 3,
   restSeconds: 60,
@@ -45,11 +42,6 @@ const SLIDERS = [
     show: v => `${100 - v}% forehand · ${v}% backhand` },
   { key: 'widePercent', label: 'Wide / body', min: 0, max: 100, step: 10,
     show: v => `${v}% wide · ${100 - v}% body` },
-  { key: 'shortPercent', label: 'Short (tilted up)', min: 0, max: 100, step: 1,
-    show: v => `${v}% short` },
-  { key: 'deepPercent', label: 'Deep (tilted down)', min: 0, max: 100, step: 1,
-    show: v => `${v}% deep · ${100 - settings.shortPercent - v}% neutral (flat)`,
-    hint: 'Neutral = whatever is left: stay at the same depth.' },
   { key: 'repsPerSet', label: 'Reps per set', min: 1, max: 30, step: 1,
     show: v => `${v} reps` },
   { key: 'sets', label: 'Sets', min: 1, max: 10, step: 1,
@@ -73,12 +65,6 @@ function loadSaved() {
       if (typeof saved.settings?.[key] === typeof DEFAULT_SETTINGS[key]) {
         settings[key] = saved.settings[key];
       }
-    }
-    // Before v1.9 there was no neutral: short was simply 100% minus deep.
-    // Such saves start on the new short / neutral / deep defaults.
-    if (saved.settings && saved.settings.shortPercent === undefined) {
-      settings.shortPercent = DEFAULT_SETTINGS.shortPercent;
-      settings.deepPercent = DEFAULT_SETTINGS.deepPercent;
     }
     if (['return', 'volley', 'rally'].includes(saved.mode)) mode = saved.mode;
   } catch (err) {
@@ -107,7 +93,6 @@ const endButton = document.getElementById('end');
 const statusText = document.getElementById('status');
 const messageText = document.getElementById('message');
 const arrow = document.getElementById('arrow');
-const arrowShape = document.getElementById('arrow-shape');
 const loadStatus = document.getElementById('load-status');
 
 // ---------- Sound ----------
@@ -211,27 +196,8 @@ function pickShot() {
   return {
     side: Math.random() * 100 < settings.backhandPercent ? 'backhand' : 'forehand',
     placement: Math.random() * 100 < settings.widePercent ? 'wide' : 'body',
-    // null = flat arrow (short/deep switched off, or a neutral cue)
-    length: settings.shortDeep ? pickLength() : null,
   };
 }
-
-function pickLength() {
-  const roll = Math.random() * 100;
-  if (roll < settings.shortPercent) return 'short';
-  if (roll < settings.shortPercent + settings.deepPercent) return 'deep';
-  return null;
-}
-
-// How the sign (one triangle for body, two for wide) is tilted for each
-// length. The frame (viewBox) fits tightly around the tilted wide sign, so
-// it is drawn nearly as big as the flat one. Body uses the same frame, so
-// its triangle is exactly the same size as each wide one.
-const ARROW_TILT = {
-  flat:  { rotate: 0,   viewBox: '0 0 100 100' },
-  short: { rotate: -45, viewBox: '-20.8 11.7 109.1 109.1' },   // points up (move forward)
-  deep:  { rotate: 45,  viewBox: '-20.8 -20.8 109.1 109.1' },  // points down (move back)
-};
 
 function showScreen(name) {
   sessionScreen.className = 'screen ' + name;
@@ -258,10 +224,7 @@ function showCue(shot) {
     voice.start(audio.currentTime + Math.max(0, -screenDelayMs) / 1000);
   }
 
-  const tilt = ARROW_TILT[shot.length || 'flat'];
   const paint = () => {
-    arrow.setAttribute('viewBox', tilt.viewBox);
-    arrowShape.setAttribute('transform', `rotate(${tilt.rotate} 50 50)`);
     arrow.classList.toggle('left', !pointsRight);
     arrow.classList.toggle('wide', shot.placement === 'wide');
     showScreen(shot.side);
@@ -501,45 +464,11 @@ for (const slider of SLIDERS) {
 
   input.addEventListener('input', () => {
     settings[slider.key] = Number(input.value);
-    if (slider.key === 'shortPercent' || slider.key === 'deepPercent') keepDepthsUnder100(slider.key);
     value.textContent = slider.show(settings[slider.key]);
     save();
   });
   sliderInputs[slider.key] = { input, value, slider, row };
   document.getElementById('sliders').append(row);
-}
-
-// Short + deep can't be more than 100%: moving one slider pulls the other
-// down if needed. Both show again, because the deep one also shows neutral.
-function keepDepthsUnder100(moved) {
-  const other = moved === 'shortPercent' ? 'deepPercent' : 'shortPercent';
-  settings[other] = Math.min(settings[other], 100 - settings[moved]);
-  for (const key of ['shortPercent', 'deepPercent']) {
-    const { input, value, slider } = sliderInputs[key];
-    input.value = settings[key];
-    value.textContent = slider.show(settings[key]);
-  }
-}
-
-// Short / deep on/off, placed just above its sliders. The sliders are hidden
-// while it's off.
-const shortDeepButtons = document.querySelectorAll('.short-deep-button');
-const depthSliderRows = [sliderInputs.shortPercent.row, sliderInputs.deepPercent.row];
-depthSliderRows[0].before(document.getElementById('short-deep-toggle'));
-
-function showShortDeep() {
-  for (const button of shortDeepButtons) {
-    button.classList.toggle('selected', button.dataset.on === String(settings.shortDeep));
-  }
-  for (const row of depthSliderRows) row.hidden = !settings.shortDeep;
-}
-
-for (const button of shortDeepButtons) {
-  button.addEventListener('click', () => {
-    settings.shortDeep = button.dataset.on === 'true';
-    showShortDeep();
-    save();
-  });
 }
 
 // Voice on/off, placed just above the Wide / body slider.
@@ -581,7 +510,6 @@ function showSettings() {
   showHandedness();
   showVoice();
   showCameraCheck();
-  showShortDeep();
   for (const { input, value, slider } of Object.values(sliderInputs)) {
     input.value = settings[slider.key];
     value.textContent = slider.show(settings[slider.key]);
@@ -814,19 +742,22 @@ function drawCamera(body) {
 // away the phone is.
 const CAMERA = {
   startSeconds: 0.5,       // where the hips are this long before the cue = start spot
-  maxWatchSeconds: 6,      // show the result by then, even if you're not back home
+  maxWatchSeconds: 8,      // show the result by then, even if you're not back home
   resultSeconds: 5,        // how long the big result shows during play
   minVisibility: 0.5,      // how sure the tracker must be that it sees a body point
   minSamples: 3,           // fewer pictures than this = "Couldn't see you"
-  minMove: 0.25,           // sideways move smaller than this (shoulder widths) = stayed
-  bigMove: 1.0,            // sideways move at least this = big, otherwise small
-  minDepthPercent: 8,      // closer/further less than this = same
-  swingReach: 0.5,         // a swing: the hitting wrist goes from this far on one side
-                           // of the chest centre (shoulder widths) to this far on the other,
-  swingSeconds: 0.6,       // within this time
-  homeDistance: 0.33,      // back home: hips this close to the start spot (shoulder widths)
+  // Limits in shoulder widths. First Tuning test (v1.11): small steps read
+  // 1.45-2.0, big steps 2.0-3.9, no step 0.0. Only the direction of the step
+  // counts (wide = toward the ball, body = away to make room); big/small is
+  // just shown in the results list.
+  minMove: 0.5,            // sideways move smaller than this = no side step
+  bigMove: 2.2,            // sideways move at least this = big, otherwise small
+  swingTravel: 0.8,        // a swing: the hitting wrist sweeps at least this far across
+  swingSeconds: 0.6,       // the body within this time (missed wide forehands swept 1.5-2.1,
+                           // no swing 0.35)
+  homeDistance: 0.33,      // back home: hips this close to the start spot sideways
   homeHoldSeconds: 0.2,    // and staying there this long
-  keepSeconds: 8,          // forget body positions older than this
+  keepSeconds: 10,         // forget body positions older than this
 };
 
 // Body positions seen during a session, newest last.
@@ -853,8 +784,6 @@ function recordSample(body, time) {
       shoulders,
       wrist: at(settings.handedness === 'right' ? RIGHT_WRIST : LEFT_WRIST),
       shoulderWidth: Math.hypot(rightShoulder.x - leftShoulder.x, rightShoulder.y - leftShoulder.y),
-      // Shoulders to hips: hardly changes when you turn, but grows as you come closer.
-      torso: Math.hypot(shoulders.x - hips.x, shoulders.y - hips.y),
       // Which way is the player's right in the picture (+1 or -1). Taken from
       // the body itself, so it works whether or not the camera mirrors.
       rightward: Math.sign(rightShoulder.x - leftShoulder.x),
@@ -890,13 +819,10 @@ function analyseRep(cueTime, now) {
   const start = {
     x: average(before, s => s.hips.x),
     shoulderWidth: average(before, s => s.shoulderWidth),
-    torso: average(before, s => s.torso),
     rightward: Math.sign(average(before, s => s.rightward)) || 1,
   };
   // + = toward the player's right, in shoulder widths
   const sideways = smooth(after.map(s => (s.hips.x - start.x) * start.rightward / start.shoulderWidth));
-  // + = came closer (looks bigger), as a share of the start size
-  const depth = smooth(after.map(s => s.torso / start.torso - 1));
   // Hitting wrist across the body: + = on the player's right of the chest centre
   const across = smooth(after.map(s => (s.wrist.x - s.shoulders.x) * start.rightward / start.shoulderWidth), 1);
   const times = after.map(s => s.time);
@@ -904,44 +830,39 @@ function analyseRep(cueTime, now) {
   const swing = findSwing(across, times);
   return {
     sideways: furthest(sideways),
-    depth: furthest(depth),
     swing,
-    homeAt: swing ? findHome(sideways, depth, times, swing.at) : null,
-    // For tuning: how far the wrist reached on each side of the chest, and
-    // how close the hips came back to the start spot after the swing.
+    homeAt: swing ? findHome(sideways, times, swing.at) : null,
+    // For tuning: the wrist's reach on each side of the chest, and how close
+    // the hips came back after the swing.
     reach: { right: Math.max(0, ...across), left: Math.max(0, ...across.map(v => -v)) },
     closestHome: swing ? Math.min(...sideways.filter((_, i) => times[i] >= swing.at).map(Math.abs)) : null,
   };
 }
 
-// The first quick sweep of the hitting wrist from one side of the body to the
-// other. From the hitting side to the other side = forehand; the other way =
-// backhand (one- or two-handed).
+// The biggest quick sweep of the hitting wrist across the body: at least
+// swingTravel shoulder widths within swingSeconds. Toward the other side =
+// forehand; toward the hitting side = backhand (one- or two-handed).
 function findSwing(across, times) {
-  let lastRight = null, lastLeft = null;   // when the wrist was last far out on each side
+  let best = null;
   for (let i = 0; i < across.length; i++) {
-    const t = times[i];
-    if (across[i] >= CAMERA.swingReach) {
-      if (lastLeft !== null && t - lastLeft <= CAMERA.swingSeconds * 1000) return swingFrom(-1, t);
-      lastRight = t;
-    } else if (across[i] <= -CAMERA.swingReach) {
-      if (lastRight !== null && t - lastRight <= CAMERA.swingSeconds * 1000) return swingFrom(1, t);
-      lastLeft = t;
+    for (let j = i + 1; j < across.length && times[j] - times[i] <= CAMERA.swingSeconds * 1000; j++) {
+      const travel = across[j] - across[i];
+      if (Math.abs(travel) >= CAMERA.swingTravel && (!best || Math.abs(travel) > Math.abs(best.travel))) {
+        best = { travel, at: times[j], seconds: (times[j] - times[i]) / 1000 };
+      }
     }
   }
-  return null;
-}
-
-function swingFrom(side, at) {
+  if (!best) return null;
   const hittingSide = settings.handedness === 'right' ? 1 : -1;
-  return { side: side === hittingSide ? 'forehand' : 'backhand', at };
+  // A sweep toward the player's left (travel < 0) starts on their right.
+  const from = best.travel < 0 ? 1 : -1;
+  return { side: from === hittingSide ? 'forehand' : 'backhand', ...best };
 }
 
 // The first moment after the swing when the hips are back near the start spot
-// (sideways and forward/back) and stay there for a moment. null = not yet.
-function findHome(sideways, depth, times, after) {
-  const near = i => Math.abs(sideways[i]) <= CAMERA.homeDistance
-                 && Math.abs(depth[i]) * 100 < CAMERA.minDepthPercent;
+// and stay there for a moment. null = not yet.
+function findHome(sideways, times, after) {
+  const near = i => Math.abs(sideways[i]) <= CAMERA.homeDistance;
   for (let i = 0; i < times.length; i++) {
     if (times[i] < after || !near(i)) continue;
     let j = i;
@@ -955,31 +876,24 @@ function findHome(sideways, depth, times, after) {
 // The readings in words, shared by the big result and the results list.
 function readings(result) {
   const size = Math.abs(result.sideways);
-  const percent = Math.round(Math.abs(result.depth) * 100);
   return {
     size,
     side: result.sideways > 0 ? 'right' : 'left',
     stayed: size < CAMERA.minMove,
     big: size >= CAMERA.bigMove,
-    percent,
-    depth: percent < CAMERA.minDepthPercent ? 'same' : result.depth > 0 ? 'closer' : 'further',
   };
 }
 
-function cueName(shot, withDepth) {
-  const depth = shot.length || (withDepth ? 'neutral' : '');
-  return `${shot.side} ${shot.placement}${depth ? ' ' + depth : ''}`;
+function cueName(shot) {
+  return `${shot.side} ${shot.placement}`;
 }
 
 // A few huge words, readable from a few metres away during play.
-// withDepth: also say whether you stepped forward or back.
-function bigResult(result, withDepth) {
+function bigResult(result) {
   if (!result) return 'CAN’T SEE YOU';
   const r = readings(result);
-  const lines = [r.stayed ? 'NO SIDE STEP' : `${r.big ? 'BIG' : 'SMALL'} STEP ${r.side.toUpperCase()}`];
-  if (withDepth) {
-    lines.push({ same: 'SAME DEPTH', closer: 'STEP FORWARD', further: 'STEP BACK' }[r.depth]);
-  }
+  // Only the direction counts, so the size isn't shown here.
+  const lines = [r.stayed ? 'NO SIDE STEP' : `STEP ${r.side.toUpperCase()}`];
   if (!result.swing) {
     lines.push('NO SWING');
   } else {
@@ -990,15 +904,14 @@ function bigResult(result, withDepth) {
 }
 
 // All the details, for the results list after the session.
-function describeResult(shot, result, withDepth) {
-  const lines = [`Cue: ${cueName(shot, withDepth)}`];
+function describeResult(shot, result) {
+  const lines = [`Cue: ${cueName(shot)}`];
   if (!result) {
     lines.push('Couldn’t see you');
     return lines.join('\n');
   }
   const r = readings(result);
   lines.push(`Moved: ${r.stayed ? 'stayed' : `${r.side}, ${r.big ? 'big' : 'small'}`} (${r.size.toFixed(1)})`);
-  lines.push(`Forward/back: ${r.depth} ${r.percent}%`);
   if (!result.swing) {
     lines.push('Swing: none seen');
     lines.push('Back home: no time (no swing)');
@@ -1025,14 +938,13 @@ async function showCheck(run, shot, asked = null) {
     if (run.stopped) return;
   }
   const result = analyseRep(cueShownAt, Math.min(performance.now(), end));
-  const withDepth = settings.shortDeep || run.tuning;
   checkLogPicture = cameraVideo.videoWidth > cameraVideo.videoHeight ? 'sideways' : 'upright';
   checkLog.push({
     label: run.tuning ? `Rep ${run.rep}` : `Set ${run.set} · Rep ${run.rep}`,
-    details: (asked ? `Asked: ${asked.join(', ').toLowerCase()}\n` : '') + describeResult(shot, result, withDepth),
+    details: (asked ? `Asked: ${asked.join(', ').toLowerCase()}\n` : '') + describeResult(shot, result),
     numbers: rawNumbers(result),
   });
-  messageText.textContent = bigResult(result, withDepth);
+  messageText.textContent = bigResult(result);
   showScreen('result');
   await wait(CAMERA.resultSeconds);
   messageText.textContent = '';
@@ -1043,30 +955,31 @@ async function showCheck(run, shot, asked = null) {
 function rawNumbers(result) {
   if (!result) return 'Numbers: none (not seen)';
   const n = v => (v >= 0 ? '+' : '') + v.toFixed(2);
-  return `Numbers: side ${n(result.sideways)}, depth ${n(result.depth)}, `
+  const swing = result.swing
+    ? `sweep ${n(result.swing.travel)} in ${result.swing.seconds.toFixed(2)} s`
+    : 'sweep -';
+  return `Numbers: side ${n(result.sideways)}, ${swing}, `
     + `wrist reach R ${result.reach.right.toFixed(2)} / L ${result.reach.left.toFixed(2)}, `
     + `closest home ${result.closestHome === null ? '-' : result.closestHome.toFixed(2)}`;
 }
 
 // ---------- Tuning test ----------
-// A fixed list of 12 reps for tuning the Camera check. Before each rep the
+// A fixed list of 8 reps for tuning the Camera check. Before each rep the
 // screen says what to do (always the same, so nothing has to be remembered).
-// Reps 1-8 are correct moves; 9-12 are mistakes made on purpose, which the
-// camera should catch. Written for right-handed; left-handed swaps the words
-// LEFT and RIGHT (the cues already swap by themselves).
+// Reps 1-4 are correct moves; 5-8 are mistakes made on purpose, which the
+// camera should catch. What counts is the direction of the step: wide =
+// toward the ball (any size), body = a small step away to make room.
+// Written for right-handed; left-handed swaps the words LEFT and RIGHT (the
+// cues already swap by themselves).
 const TUNING_REPS = [
-  { side: 'forehand', placement: 'wide', length: null,    asked: ['BIG STEP RIGHT', 'FOREHAND'] },
-  { side: 'backhand', placement: 'wide', length: null,    asked: ['BIG STEP LEFT', 'BACKHAND'] },
-  { side: 'forehand', placement: 'body', length: null,    asked: ['SMALL STEP LEFT', 'FOREHAND'] },
-  { side: 'backhand', placement: 'body', length: null,    asked: ['SMALL STEP RIGHT', 'BACKHAND'] },
-  { side: 'forehand', placement: 'wide', length: 'short', asked: ['BIG STEP RIGHT', 'STEP FORWARD', 'FOREHAND'] },
-  { side: 'backhand', placement: 'wide', length: 'deep',  asked: ['BIG STEP LEFT', 'STEP BACK', 'BACKHAND'] },
-  { side: 'forehand', placement: 'body', length: 'short', asked: ['SMALL STEP LEFT', 'STEP FORWARD', 'FOREHAND'] },
-  { side: 'backhand', placement: 'body', length: 'deep',  asked: ['SMALL STEP RIGHT', 'STEP BACK', 'BACKHAND'] },
-  { side: 'forehand', placement: 'wide', length: null,    asked: ['ONLY A SMALL', 'STEP RIGHT', 'FOREHAND'] },
-  { side: 'backhand', placement: 'wide', length: null,    asked: ['BIG STEP LEFT', 'BUT FOREHAND'] },
-  { side: 'forehand', placement: 'body', length: null,    asked: ['NO STEP', 'NO SWING'] },
-  { side: 'forehand', placement: 'wide', length: null,    asked: ['BIG STEP RIGHT', 'FOREHAND', 'STAY OUT'] },
+  { side: 'forehand', placement: 'wide', asked: ['STEP RIGHT', 'FOREHAND'] },
+  { side: 'backhand', placement: 'wide', asked: ['STEP LEFT', 'BACKHAND'] },
+  { side: 'forehand', placement: 'body', asked: ['SMALL STEP LEFT', 'FOREHAND'] },
+  { side: 'backhand', placement: 'body', asked: ['SMALL STEP RIGHT', 'BACKHAND'] },
+  { side: 'forehand', placement: 'wide', asked: ['STEP LEFT', 'FOREHAND'] },           // wrong direction
+  { side: 'backhand', placement: 'wide', asked: ['STEP LEFT', 'BUT FOREHAND'] },       // wrong swing
+  { side: 'forehand', placement: 'body', asked: ['NO STEP', 'FOREHAND'] },             // no room made
+  { side: 'forehand', placement: 'wide', asked: ['STEP RIGHT', 'FOREHAND', 'STAY OUT'] }, // not back
 ];
 const TUNING_DO_SECONDS = 5;   // how long "DO: ..." shows before each rep
 
