@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.1 — 2026-10-28
+
+### Quicker rhythm with the Camera check
+- The green / red card now just **flashes for 1 s** (was 4 s), then the next serve comes after a short random wait of **1–2 s** (was 3–5 s), because you're already back home and ready. The long pause broke the rhythm.
+- The first rep of each set still has the normal 3–5 s wait, so you have time to get into position. All details are still in the results list after the session.
+
 ## v2.0 — 2026-10-28
 
 ### Pass / fail with the camera ([Issue #4](https://github.com/cmloh1977/tennis/issues/4) done)

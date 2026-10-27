@@ -252,7 +252,13 @@ function waitExactly(seconds) {
 // cued (nothing if the session was ended).
 async function serveRep(run, gapSeconds, fixedShot = null) {
   showScreen('neutral');
-  await wait(randomBetween(TIMING.minWaitSeconds, TIMING.maxWaitSeconds));
+  // Right after a Camera check card you're already back home and ready, so
+  // the wait is shorter. Still random, so the beep can't be timed.
+  const [minWait, maxWait] = run.afterCard
+    ? [CAMERA.nextMinWaitSeconds, CAMERA.nextMaxWaitSeconds]
+    : [TIMING.minWaitSeconds, TIMING.maxWaitSeconds];
+  run.afterCard = false;
+  await wait(randomBetween(minWait, maxWait));
   if (run.stopped) return;
 
   beep();                              // split-step trigger
@@ -310,6 +316,7 @@ async function rallyRep(run) {
 
 // A big countdown between sets, with a beep just before the next set starts.
 async function rest(run, nextSet) {
+  run.afterCard = false;   // the next set starts with the normal wait
   showScreen('rest');
   statusText.textContent = `Rest · next: set ${nextSet}/${settings.sets}`;
   for (let left = settings.restSeconds; left > 0; left--) {
@@ -744,7 +751,9 @@ const CAMERA = {
   startSeconds: 0.5,       // where the hips are this long before the cue = start spot
   maxWatchSeconds: 4,      // back home within this time = pass (the user's choice; it was
                            // 8 s for tuning). The result shows by then at the latest.
-  resultSeconds: 4,        // how long the green / red screen shows
+  resultSeconds: 1,        // how long the green / red card flashes (4 s broke the rhythm)
+  nextMinWaitSeconds: 1,   // after a card, a shorter random wait before the next beep:
+  nextMaxWaitSeconds: 2,   // you're already back home and ready (normally 3-5 s)
   minVisibility: 0.5,      // how sure the tracker must be that it sees a body point
   minSamples: 3,           // fewer pictures than this = "Couldn't see you"
   // Limits in shoulder widths. First Tuning test (v1.11): small steps read
@@ -1028,6 +1037,7 @@ async function showCheck(run, shot, asked = null) {
   }
   await wait(CAMERA.resultSeconds);
   messageText.textContent = '';
+  run.afterCard = true;
 }
 
 // The numbers behind the readings, for tuning the limits in CAMERA.
