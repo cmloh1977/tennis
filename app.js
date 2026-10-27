@@ -768,9 +768,10 @@ const CAMERA = {
   startSeconds: 0.5,       // where the hips are this long before the cue = start spot
   maxWatchSeconds: 4,      // back home within this time = pass (the user's choice; it was
                            // 8 s for tuning). The result shows by then at the latest.
-  resultSeconds: 1,        // how long the green / red card flashes (4 s broke the rhythm)
-  nextMinWaitSeconds: 1,   // after a card, a shorter random wait before the next beep:
-  nextMaxWaitSeconds: 2,   // you're already back home and ready (normally 3-5 s)
+  resultSeconds: 0.5,      // how long the green / red card flashes (4 s, then 1 s, broke
+                           // the rhythm)
+  nextMinWaitSeconds: 0.5, // after a card, a shorter random wait before the next beep:
+  nextMaxWaitSeconds: 1,   // you're already back home and ready (normally 3-5 s)
   minVisibility: 0.5,      // how sure the tracker must be that it sees a body point
   minSamples: 3,           // fewer pictures than this = "Couldn't see you"
   // Limits in shoulder widths. First Tuning test (v1.11): small steps read

@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.3 — 2026-10-28
+
+### Even quicker rhythm
+- From the green / red card to the next beep now takes about half as long: the card flashes for **0.5 s** (was 1 s) and the random wait before the next beep is **0.5–1 s** (was 1–2 s). The first rep of each set still has the normal 3–5 s wait.
+
 ## v2.2 — 2026-10-28
 
 ### Fewer false "wrong swing" on wide forehands
