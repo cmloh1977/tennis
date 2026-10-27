@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.13 — 2026-10-28
+
+### Camera check: the swing is the first sweep across the body
+- From the second Tuning test (7 of 8 reps read correctly): on the "stay out" rep a forehand was read as a backhand. The rule took the *biggest* wrist sweep, which was the arm coming back after the forehand.
+- Now the swing is the **first** sweep that really crosses the body: the hitting wrist starts at least 0.3 shoulder widths on one side of the chest, ends on the other side, and travels at least 0.8 within 0.6 s. Taking the racket back doesn't cross the body, so it doesn't count.
+- Copy results lists every sweep the camera saw, with its size and when it ended.
+
 ## v1.12 — 2026-10-28
 
 ### Short / deep removed, to keep things simple

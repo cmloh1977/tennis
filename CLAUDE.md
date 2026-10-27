@@ -2,7 +2,7 @@
 
 A web app for shadow-swing practice. It gives random cues so the player reacts instead of planning the next stroke. Used outdoors on a rooftop, with an iPhone or iPad placed a few metres in front of the player.
 
-Current version: **1.12** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
+Current version: **1.13** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
 
 ## Working style (important)
 
@@ -147,7 +147,7 @@ The last-used mode is remembered.
 - On the Mac the camera is blocked and the hidden pane pauses `requestAnimationFrame`: test with a fake `getUserMedia` (`canvas.captureStream()`), a fake `poseTracker.detectForVideo` that moves a body after `cueShownAt`, and `requestAnimationFrame` swapped for `setTimeout`.
 
 ### Swing and back home (step 2b, v1.8)
-- Each sample also keeps the hitting wrist (from Handedness) and the chest centre. `findSwing()`: the first time the wrist goes from ≥ `swingReach` (0.5 shoulder widths) on one side of the chest centre to ≥ 0.5 on the other within `swingSeconds` (0.6 s). From the hitting side = forehand, otherwise backhand. Its time is when the sweep completes.
+- Each sample also keeps the hitting wrist (from Handedness) and the chest centre. `findSweeps()` / `swingOf()` (since v1.13): the first wrist sweep that crosses the chest centre (see Round 2 below). From the hitting side = forehand, otherwise backhand. Its time is when the sweep completes.
 - `findHome()`: first moment after the swing with hips within `homeDistance` (0.33 shoulder widths) sideways, held for `homeHoldSeconds` (0.2 s). Back-home time = that moment − `cueShownAt`. No swing = no time.
 - In the fake-camera test, reset `cueShownAt = 0` between runs, or the fake player starts the next rep where the last one ended.
 
@@ -162,6 +162,7 @@ The last-used mode is remembered.
 - Results list entries have an "Asked:" line in the Tuning test. **Copy results** copies the list plus `rawNumbers()` (side, swing sweep size and time, wrist reach R/L, closest home after the swing) for tuning `CAMERA`.
 - **Round 1 (v1.11 → v1.12)**, sideways, right-handed. Small steps read 1.45–2.0, big 2.0–3.9, no step 0.0 → `bigMove` 2.2, `minMove` 0.5. Old swing rule (wrist ≥ 0.5 past the chest on both sides) missed all 3 wide forehands (left reach only 0.24–0.30) → `findSwing()` now takes the biggest sweep ≥ `swingTravel` 0.8 within 0.6 s. Body length (torso) read "closer" on nearly every rep, even step-back ones (bending/turning), so depth was dropped together with short/deep (v1.12). Back-home times 3.9–5.6 s → `maxWatchSeconds` 8. Left/right, backhands, wrong swing, no step and stay out all read correctly.
 - The user can keep about 3 moves in mind at once; the "DO:" screen before each rep means nothing has to be memorised, and they just paste the copied results (no extra report needed).
+- **Round 2 (v1.12 → v1.13)**, sideways, 8 reps: 7 of 8 correct. Real steps 1.55–3.1, no step 0.24; wrong direction, wrong swing, no step and stay out all caught. Only miss: rep 8 (stay out) read a forehand as backhand, because "biggest sweep" picked the arm coming back (+2.27). → `findSweeps()` lists every sweep that crosses the chest centre (starts ≥ `swingStart` 0.3 on one side, ends on the other, ≥ `swingTravel` 0.8 within 0.6 s); the **first** is the swing (`swingOf()`). Copy results lists all sweeps with times.
 - **What counts as correct (the user's rule):** the *direction* of the step, not its size. Wide = step toward the ball, any size (a small step on a wide ball is just a less wide ball, not a mistake). Body = a small step away to make room; no step on a body ball is a mistake. `bigMove` only labels big/small in the results list.
 - Tuning process: user runs the Tuning test sideways, pastes the copied text, we set each limit between the correct reps (1–4) and the mistakes (5–8), explain the change, publish, and repeat until reps 1–4 read correctly and 5–8 are caught.
 - Next (not built yet): step 3 = green pass (with the back-home time) / red fail, once the readings match reality. Version 2.0.
