@@ -374,6 +374,9 @@ function endSession() {
 }
 
 // iPhones only allow sound after a tap, so sound is switched on here.
+// When Start last warned that the camera picture is upright.
+let uprightWarnedAt = -Infinity;
+
 // Start and Tuning test both come here. withCamera: start the camera too.
 async function start(withCamera, tuning = false) {
   startButton.disabled = true;
@@ -399,6 +402,20 @@ async function start(withCamera, tuning = false) {
     try {
       await startCamera(text => { loadStatus.textContent = text; });
       loadStatus.textContent = '';
+      // Wide moves leave an upright picture. Warn once; a second tap within
+      // a minute starts anyway.
+      const upright = cameraVideo.videoHeight > cameraVideo.videoWidth;
+      if (upright && performance.now() - uprightWarnedAt > 60000) {
+        uprightWarnedAt = performance.now();
+        stopCamera();
+        allowSleep();
+        loadStatus.textContent = 'The camera picture is upright, so wide moves may leave it.\n'
+          + 'Turn the phone sideways (check that Auto-rotate is on), then tap again.\n'
+          + 'Or tap again to start upright anyway.';
+        startButton.disabled = false;
+        tuningButton.disabled = false;
+        return;
+      }
     } catch (err) {
       loadStatus.textContent = tuning ? err.message
         : `${err.message}\nOr turn off Camera check in Settings.`;
@@ -767,12 +784,8 @@ const CAMERA = {
   swingTravel: 0.8,        // travels at least this far (missed wide forehands swept
                            // 1.5-2.1, no swing 0.35)
   swingSeconds: 0.6,       // within this time
-  swingRise: 0.2,          // the swing goes low to high: the sweep whose wrist rises the
-                           // most, at least this much (shoulder widths)
-  swingEarlierShare: 0.8,  // if no sweep rises: the biggest sweep, unless an earlier one
-                           // is at least this share of it
-  swingClearMargin: 0.25,  // the swing is "unclear" (forehand/backhand not judged) if a
-                           // sweep the other way rises nearly as much, or none rises
+  swingShare: 0.8,         // right swing = a sweep the cue's way at least this share of
+                           // the biggest sweep (correct strokes 86-100%, wrong 53-65%)
   homeDistance: 0.33,      // back home: hips this close to the start spot sideways
   homeHoldSeconds: 0.2,    // and staying there this long
   keepSeconds: 10,         // forget body positions older than this
@@ -849,7 +862,9 @@ function analyseRep(cueTime, now) {
 
   const sweeps = findSweeps(across, times)
     .map(w => ({ ...w, rise: height[w.end] - height[w.start] }));
-  const swing = sweeps.length ? swingOf(pickSwing(sweeps)) : null;
+  // "Back home" only counts after the stroke: after the last big sweep.
+  const big = sweeps.filter(w => Math.abs(w.travel) >= CAMERA.swingShare * biggestSweep(sweeps));
+  const swing = big.length ? { at: big[big.length - 1].at } : null;
   return {
     sideways: furthest(sideways),
     swing,
@@ -866,7 +881,7 @@ function analyseRep(cueTime, now) {
 // starts at least swingStart on one side of the chest centre and ends on the
 // other side, at least swingTravel away, within swingSeconds. Besides the
 // swing this finds e.g. a backhand's backswing (before) and the arm coming
-// back (after); pickSwing() chooses.
+// back (after); strokeSeen() judges them.
 function findSweeps(across, times) {
   const sweeps = [];
   let i = 0;
@@ -901,33 +916,28 @@ function findSweeps(across, times) {
   return sweeps;
 }
 
-// Which sweep is the swing. A stroke has a backswing, the swing and a
-// recovery, alternating direction, and the backswing can cross the body too
-// (especially the user's one-handed backhand). Size and order alone got it
-// wrong (v1.12-v1.14), so: the swing goes low to high, and is the sweep in
-// which the wrist rises the most. If none rises, fall back to the biggest
-// sweep, unless an earlier one is nearly as big.
-// clear: false when the choice is doubtful (Tuning test round 5: rep 8's
-// backswing rose 0.35 against the forehand's 0.38; rep 1 had no rising sweep).
-function pickSwing(sweeps) {
-  const rising = sweeps.filter(w => w.rise >= CAMERA.swingRise);
-  if (rising.length) {
-    const best = rising.reduce((top, w) => (w.rise > top.rise ? w : top));
-    const rival = sweeps.filter(w => Math.sign(w.travel) !== Math.sign(best.travel))
-      .some(w => w.rise >= best.rise - CAMERA.swingClearMargin);
-    return { ...best, clear: !rival };
-  }
-  const biggest = Math.max(...sweeps.map(w => Math.abs(w.travel)));
-  return { ...sweeps.find(w => Math.abs(w.travel) >= CAMERA.swingEarlierShare * biggest), clear: false };
+function biggestSweep(sweeps) {
+  return Math.max(0, ...sweeps.map(w => Math.abs(w.travel)));
 }
 
-// From the hitting side to the other side = forehand; the other way =
-// backhand (one- or two-handed).
-function swingOf(sweep) {
+// Which stroke the arm movements show, given the cue. A stroke has a
+// backswing, the swing and a recovery, alternating direction, and the
+// backswing can be as big as the swing (one-handed backhand take-back; the
+// looped backswing of a wide forehand, which also rises more than the flat,
+// reaching swing). Picking one sweep by size, order or rise kept getting it
+// wrong (v1.12-v2.1). So: the cue's stroke counts as seen if there is a sweep
+// its way at least swingShare of the biggest sweep; otherwise the other one.
+// Forehand = from the hitting side across the body; backhand = the other way.
+function strokeSeen(shot, result) {
   const hittingSide = settings.handedness === 'right' ? 1 : -1;
-  // A sweep toward the player's left (travel < 0) starts on their right.
-  const from = sweep.travel < 0 ? 1 : -1;
-  return { side: from === hittingSide ? 'forehand' : 'backhand', ...sweep };
+  const wayOf = stroke => (stroke === 'forehand' ? -hittingSide : hittingSide);   // sign of travel
+  const enough = CAMERA.swingShare * biggestSweep(result.sweeps);
+  const its = result.sweeps.filter(w => Math.sign(w.travel) === wayOf(shot.side) && Math.abs(w.travel) >= enough);
+  const other = shot.side === 'forehand' ? 'backhand' : 'forehand';
+  const seen = its.length ? shot.side : other;
+  const sweep = result.sweeps.filter(w => Math.sign(w.travel) === wayOf(seen))
+    .reduce((top, w) => (!top || Math.abs(w.travel) > Math.abs(top.travel) ? w : top), null);
+  return { side: seen, at: sweep.at };
 }
 
 // The first moment after the swing when the hips are back near the start spot
@@ -971,7 +981,7 @@ function judge(shot, result) {
   if (r.stayed) return { pass: false, reason: 'NO STEP' };
   if (r.side !== stepTo) return { pass: false, reason: 'WRONG WAY' };
   if (!result.swing) return { pass: false, reason: 'NO SWING' };
-  if (result.swing.clear && result.swing.side !== shot.side) return { pass: false, reason: 'WRONG SWING' };
+  if (strokeSeen(shot, result).side !== shot.side) return { pass: false, reason: 'WRONG SWING' };
   if (!result.homeAt) return { pass: false, reason: 'NOT BACK' };
   return { pass: true, time: (result.homeAt - cueShownAt) / 1000 };
 }
@@ -994,7 +1004,8 @@ function describeResult(shot, result) {
     lines.push('Swing: none seen');
     lines.push('Back home: no time (no swing)');
   } else {
-    lines.push(`Swing: ${result.swing.side}${result.swing.clear ? '' : ' (unclear, not judged)'} (at ${seconds(result.swing.at)} s)`);
+    const stroke = strokeSeen(shot, result);
+    lines.push(`Swing: ${stroke.side} (at ${seconds(stroke.at)} s)`);
     lines.push(result.homeAt ? `Back home: ${seconds(result.homeAt)} s`
       : `Back home: not within ${CAMERA.maxWatchSeconds} s`);
   }
@@ -1045,7 +1056,7 @@ async function showCheck(run, shot, asked = null) {
 function rawNumbers(result) {
   if (!result) return 'Numbers: none (not seen)';
   const n = v => (v >= 0 ? '+' : '') + v.toFixed(2);
-  // Every sweep: size, and when it ended after the cue (pickSwing() chose the swing).
+  // Every sweep: size, rise, and when it ended after the cue.
   const swing = result.sweeps.length
     ? 'sweeps ' + result.sweeps.map(w => `${n(w.travel)} rise ${n(w.rise)} in ${w.seconds.toFixed(2)} s at ${seconds(w.at)} s`).join(', ')
     : 'sweeps -';

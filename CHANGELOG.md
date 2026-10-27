@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.2 — 2026-10-28
+
+### Fewer false "wrong swing" on wide forehands
+- On a wide forehand the backswing loops up high and the forehand goes out flat to reach the ball, so the "low to high" rule picked the backswing and called it a backhand (7 of 10 wide forehands in one session).
+- New check: the swing counts as right if there's a sweep **in the direction the cue asked for** that is at least **80% as big as your biggest sweep**. In every test so far, correct strokes were 86–100% and deliberate wrong swings 53–65%.
+- The "unclear" swing label is gone; the results list always shows the stroke that was judged.
+
+### Warning when the camera picture is upright
+- If Camera check (or the Tuning test) starts with an upright camera picture, Start stops once with a message: turn the phone sideways and check Auto-rotate is on. Tapping again within a minute starts anyway.
+
 ## v2.1 — 2026-10-28
 
 ### Quicker rhythm with the Camera check

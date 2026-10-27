@@ -2,7 +2,7 @@
 
 A web app for shadow-swing practice. It gives random cues so the player reacts instead of planning the next stroke. Used outdoors on a rooftop, with an iPhone or iPad placed a few metres in front of the player.
 
-Current version: **2.1** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
+Current version: **2.2** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
 
 ## Working style (important)
 
@@ -170,8 +170,9 @@ The last-used mode is remembered.
 - Tuning process: user runs the Tuning test sideways, pastes the copied text, we set each limit between the correct reps (1–4) and the mistakes (5–8), explain the change, publish, and repeat until reps 1–4 read correctly and 5–8 are caught.
 
 ### Pass / fail (v2.0, issue #4 done)
-- `judge(shot, result)` → `{ pass, reason }` in this order: no result → `pass: null` "CAN'T SEE YOU" (black `result` screen, not counted); NO STEP (under `minMove`); WRONG WAY (wide = toward the side the cue points to, body = the other way); NO SWING; WRONG SWING (only if `swing.clear`); NOT BACK (no `homeAt` within `maxWatchSeconds`, **4 s**, the user's choice). Otherwise pass with time = `homeAt − cueShownAt`.
-- `pickSwing()` marks `clear: false` when no sweep rose (fallback used) or a sweep in the other direction rose within `swingClearMargin` (0.25) of the best: then the swing type isn't judged, so a doubtful reading can't fail a rep. Round 5 (v1.15): 8/8 correct; reps 1 (no rise) and 8 (0.35 vs 0.38) would be "unclear".
+- `judge(shot, result)` → `{ pass, reason }` in this order: no result → `pass: null` "CAN'T SEE YOU" (black `result` screen, not counted); NO STEP (under `minMove`); WRONG WAY (wide = toward the side the cue points to, body = the other way); NO SWING; WRONG SWING (`strokeSeen()` differs from the cue);; NOT BACK (no `homeAt` within `maxWatchSeconds`, **4 s**, the user's choice). Otherwise pass with time = `homeAt − cueShownAt`.
+- **Swing judging since v2.2:** `strokeSeen(shot, result)`: the cue's stroke counts as seen if a sweep in its direction is ≥ `swingShare` (0.8) of the biggest sweep. A v2.1 session (10 wide forehands) showed the pattern run-lag (−) → **looped backswing** (+, rising 0.6–1.1) → flat forehand (−, rise −0.7..+0.6) → recovery (+), so the "biggest rise" rule (v1.15–v2.1, `pickSwing`, removed) called 7/10 backhand. Across all data, correct strokes' sweeps the cue's way were 86–100% of the biggest, deliberate wrong swings 53–65%. `swing` in `analyseRep()` is now just `{ at }` of the last big sweep (for NO SWING and for "back home only after the stroke").
+- `start()` warns once if the camera picture is upright (`uprightWarnedAt`; a second tap within 60 s starts anyway). That v2.1 session said "upright picture" though the user held the phone sideways: likely Auto-rotate off on the Pixel, so the app and camera picture stayed upright; wide moves then left the picture (side 5.9 / 7.9, no swing).
 - Screens: `pass` = green `#00c400`, black text, huge time (`.verdict-time`); `fail` = red `#e00000`, white reason word. Full colour, no white frame. Since v2.1 it only flashes for `resultSeconds` (1 s) and the next rep's random wait is `nextMinWaitSeconds`–`nextMaxWaitSeconds` (1–2 s, via `run.afterCard`) instead of 3–5 s: the user found the long pause broke the rhythm. The first rep of a set keeps the normal wait.
 - Results list: `resultsSummary()` on top ("x of y passed · average · best"), each entry starts with PASS / FAIL / Not judged and has a green / red edge. Copy results includes the summary.
 - The Tuning test is judged too (reps 1–4 should be green, 5–8 red).
