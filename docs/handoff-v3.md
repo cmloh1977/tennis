@@ -5,7 +5,7 @@ Written 2026-10-28 at the end of the issue #4 thread. Paste this into a new thre
 ## Where things stand
 
 - **Live version: 2.6**, https://cmloh1977.github.io/tennis/
-- Issue #4 (Camera check with pass / fail) is built: v1.5 → v2.6.
+- Issue #4 (Camera check with pass / fail) is built (v1.5 → v2.6) and closed. The iPad test below was moved to v3.
 - `CLAUDE.md` describes the whole app, including every camera tuning round, and matches v2.6.
 - `CHANGELOG.md` has one entry per version.
 
@@ -32,7 +32,7 @@ Written 2026-10-28 at the end of the issue #4 thread. Paste this into a new thre
 
 ## Not finished yet
 
-- **iPad test of the camera** (needed to close issue #4):
+- **iPad test of the camera** (moved here from issue #4):
   - Tuning test in Chrome, then in Safari.
   - The home-screen app offline (flight mode).
   - Whether camera permission is asked every time.
