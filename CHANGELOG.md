@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.5 — 2026-10-28
+
+### Progress during the rest between sets
+- With **Camera check** on, the rest screen shows the countdown and, underneath, one line per finished set, e.g. "Set 1   7 right · 3 wrong · avg 2.8 s". Each break adds the newest set below the earlier ones, so you can see whether you're improving.
+- "Right" = green cards, "wrong" = red cards; "can't see you" reps aren't counted. The average is the back-home time of the right reps.
+- The results list after the session (and Copy results) also shows these lines when there was more than one set.
+
 ## v2.4 — 2026-10-28
 
 ### Choose how quickly the next serve comes

@@ -96,6 +96,7 @@ const startButton = document.getElementById('start');
 const endButton = document.getElementById('end');
 const statusText = document.getElementById('status');
 const messageText = document.getElementById('message');
+const progressText = document.getElementById('progress');
 const arrow = document.getElementById('arrow');
 const loadStatus = document.getElementById('load-status');
 
@@ -320,17 +321,27 @@ async function rallyRep(run) {
 }
 
 // A big countdown between sets, with a beep just before the next set starts.
+// With the Camera check, the sets so far are listed under the countdown
+// (right / wrong and average time), one line added per set.
 async function rest(run, nextSet) {
   run.afterCard = false;   // the next set starts with the normal wait
-  showScreen('rest');
+  const sets = checkLog.length ? setSummaries() : [];
+  progressText.textContent = sets.join('\n');
+  // Smaller lines (and countdown) when there are many sets, so up to 9 still
+  // fit on a sideways phone below the status text.
+  progressText.style.fontSize = `min(4.6vw, ${Math.min(7, 40 / Math.max(1, sets.length))}vh)`;
+  messageText.style.fontSize = sets.length > 5 ? 'min(18vw, 16vh)' : '';
+  showScreen(sets.length ? 'rest progress' : 'rest');
   statusText.textContent = `Rest · next: set ${nextSet}/${settings.sets}`;
   for (let left = settings.restSeconds; left > 0; left--) {
     messageText.textContent = formatClock(left);
     if (left === TIMING.restWarningSeconds) beep();
     await wait(1);
-    if (run.stopped) return;
+    if (run.stopped) break;
   }
   messageText.textContent = '';
+  messageText.style.fontSize = '';
+  progressText.textContent = '';
 }
 
 const repForMode = { return: returnRep, volley: volleyRep, rally: rallyRep };
@@ -1044,6 +1055,7 @@ async function showCheck(run, shot, asked = null) {
   checkLogPicture = cameraVideo.videoWidth > cameraVideo.videoHeight ? 'sideways' : 'upright';
   checkLog.push({
     label: run.tuning ? `Rep ${run.rep}` : `Set ${run.set} · Rep ${run.rep}`,
+    set: run.set,
     verdict,
     details: verdictText(verdict) + '\n' + (asked ? `Asked: ${asked.join(', ').toLowerCase()}\n` : '')
       + describeResult(shot, result),
@@ -1136,8 +1148,22 @@ function resultsSummary() {
   return unseen ? `${text} (${unseen} not seen)` : text;
 }
 
+// One line per set, e.g. "Set 2   8 right · 2 wrong · avg 2.6 s". Average
+// is over the right (green) reps; "can't see you" reps aren't counted.
+function setSummaries() {
+  const numbers = [...new Set(checkLog.map(e => e.set))];
+  return numbers.map(set => {
+    const reps = checkLog.filter(e => e.set === set);
+    const times = reps.filter(e => e.verdict.pass).map(e => e.verdict.time);
+    const wrong = reps.filter(e => e.verdict.pass === false).length;
+    const avg = times.length ? `${(times.reduce((a, b) => a + b, 0) / times.length).toFixed(1)} s` : '–';
+    return `Set ${set}   ${times.length} right · ${wrong} wrong · avg ${avg}`;
+  });
+}
+
 function showResults() {
-  resultsSummaryText.textContent = resultsSummary();
+  const sets = setSummaries();
+  resultsSummaryText.textContent = resultsSummary() + (sets.length > 1 ? '\n' + sets.join('\n') : '');
   resultsList.replaceChildren(...checkLog.map(entry => {
     const row = document.createElement('div');
     row.className = 'result-entry' + (entry.verdict.pass ? ' passed' : entry.verdict.pass === false ? ' failed' : '');
@@ -1163,7 +1189,7 @@ copyResultsButton.addEventListener('click', async () => {
   const version = document.querySelector('.version').textContent;
   const text = [`Tennis trainer camera results · ${version} · ${settings.handedness}-handed · `
     + `${checkLogPicture} picture`,
-    resultsSummary(),
+    resultsSummary() + (setSummaries().length > 1 ? '\n' + setSummaries().join('\n') : ''),
     ...checkLog.map(entry => `${entry.label}\n${entry.details}\n${entry.numbers}`)].join('\n\n');
   try {
     await navigator.clipboard.writeText(text);

@@ -257,12 +257,26 @@ input[type="range"]::-webkit-slider-thumb {
 #session.fail .end-button { color: #fff; border-color: #fff; }
 
 /* Results list: summary on top, and a coloured edge for pass / fail. */
-#results-summary { font-size: 1.3rem; font-weight: 700; margin: 8px 0 12px; }
+#results-summary { font-size: 1.3rem; font-weight: 700; margin: 8px 0 12px; white-space: pre-line; }
 .result-entry.passed { border-left: 8px solid #00c400; padding-left: 12px; }
 .result-entry.failed { border-left: 8px solid #e00000; padding-left: 12px; }
 
 /* Rest between sets: a huge countdown. */
 #session.rest #message { font-size: 30vw; line-height: 1.1; }
+
+/* Rest with the Camera check: a smaller countdown and the sets so far. */
+#progress { display: none; }
+#session.progress #message { font-size: min(18vw, 28vh); }
+#session.progress #progress {
+  display: block;
+  margin-top: 2vh;
+  font-size: min(4.6vw, 7vh);
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: left;
+  white-space: pre;
+  font-variant-numeric: tabular-nums;
+}
 
 /* ---------- Camera test ---------- */
 .screen.camera { padding: 0; }

@@ -2,7 +2,7 @@
 
 A web app for shadow-swing practice. It gives random cues so the player reacts instead of planning the next stroke. Used outdoors on a rooftop, with an iPhone or iPad placed a few metres in front of the player.
 
-Current version: **2.4** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
+Current version: **2.5** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
 
 ## Working style (important)
 
@@ -177,6 +177,7 @@ The last-used mode is remembered.
 - Screens: `pass` = green `#00c400`, black text, huge time (`.verdict-time`); `fail` = red `#e00000`, white reason word. Full colour, no white frame. Since v2.4 the user picks the time from card to next beep with the **Result → next serve** slider (`nextServeSeconds`, 0.5–5 s, default 1.2): half is the card (≤ `maxCardSeconds` 2 s), the rest the next rep's wait (`run.nextWait`, ± `waitSpread` 25%, via `run.afterCard`) instead of 3–5 s. History: card 4 s (v2.0) → 1 s + 1–2 s wait (v2.1) → 0.5 s + 0.5–1 s (v2.3); the user wants a quick rhythm. The first rep of a set keeps the normal wait.
 - Results list: `resultsSummary()` on top ("x of y passed · average · best"), each entry starts with PASS / FAIL / Not judged and has a green / red edge. Copy results includes the summary.
 - The Tuning test is judged too (reps 1–4 should be green, 5–8 red).
+- **Rest screen progress (v2.5):** `checkLog` entries keep `set`; `setSummaries()` gives one line per set ("Set 2   8 right · 2 wrong · avg 2.6 s", average over passes, "can't see you" not counted). `rest()` shows them in `#progress` under a smaller countdown (screen class `rest progress`) when the log has entries. Also under the summary in the results list / Copy results when there is more than one set.
 
 ## Testing
 
