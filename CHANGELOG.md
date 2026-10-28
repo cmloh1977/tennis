@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.6 — 2026-10-28
+
+### Bigger progress table on the rest screen
+- The countdown is now small, and the sets so far are a **table with big numbers**: Set, ✓ (right), ✗ (wrong), **Avg**, **FH** and **BH** (average back-home time of the right reps, overall, for forehand cues and for backhand cues; "–" if none).
+- The results list, its summary and Copy results also give the forehand and backhand averages.
+
 ## v2.5 — 2026-10-28
 
 ### Progress during the rest between sets

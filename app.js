@@ -325,12 +325,10 @@ async function rallyRep(run) {
 // (right / wrong and average time), one line added per set.
 async function rest(run, nextSet) {
   run.afterCard = false;   // the next set starts with the normal wait
-  const sets = checkLog.length ? setSummaries() : [];
-  progressText.textContent = sets.join('\n');
-  // Smaller lines (and countdown) when there are many sets, so up to 9 still
-  // fit on a sideways phone below the status text.
-  progressText.style.fontSize = `min(4.6vw, ${Math.min(7, 40 / Math.max(1, sets.length))}vh)`;
-  messageText.style.fontSize = sets.length > 5 ? 'min(18vw, 16vh)' : '';
+  const sets = checkLog.length ? setStats() : [];
+  progressText.replaceChildren(sets.length ? progressTable(sets) : '');
+  // As big as fits: up to 9 sets (10 rows with the header) on a sideways phone.
+  progressText.style.fontSize = `min(5.8vw, ${Math.min(12, 46 / (sets.length + 1))}vh)`;
   showScreen(sets.length ? 'rest progress' : 'rest');
   statusText.textContent = `Rest · next: set ${nextSet}/${settings.sets}`;
   for (let left = settings.restSeconds; left > 0; left--) {
@@ -340,7 +338,6 @@ async function rest(run, nextSet) {
     if (run.stopped) break;
   }
   messageText.textContent = '';
-  messageText.style.fontSize = '';
   progressText.textContent = '';
 }
 
@@ -1056,6 +1053,7 @@ async function showCheck(run, shot, asked = null) {
   checkLog.push({
     label: run.tuning ? `Rep ${run.rep}` : `Set ${run.set} · Rep ${run.rep}`,
     set: run.set,
+    side: shot.side,
     verdict,
     details: verdictText(verdict) + '\n' + (asked ? `Asked: ${asked.join(', ').toLowerCase()}\n` : '')
       + describeResult(shot, result),
@@ -1137,28 +1135,65 @@ const openResultsButton = document.getElementById('open-results');
 
 // e.g. "7 of 10 passed · average 2.6 s · best 2.1 s (1 not seen)"
 function resultsSummary() {
-  const judged = checkLog.filter(e => e.verdict.pass !== null);
-  const times = checkLog.filter(e => e.verdict.pass).map(e => e.verdict.time);
-  let text = `${times.length} of ${judged.length} passed`;
-  if (times.length) {
-    text += ` · average ${(times.reduce((a, b) => a + b, 0) / times.length).toFixed(1)} s`
-      + ` · best ${Math.min(...times).toFixed(1)} s`;
+  const s = repStats(checkLog);
+  let text = `${s.right} of ${s.right + s.wrong} passed`;
+  if (s.right) {
+    text += ` · average ${secondsText(s.avg)} (FH ${secondsText(s.fh)} · BH ${secondsText(s.bh)})`
+      + ` · best ${secondsText(s.best)}`;
   }
-  const unseen = checkLog.length - judged.length;
+  const unseen = checkLog.length - s.right - s.wrong;
   return unseen ? `${text} (${unseen} not seen)` : text;
 }
 
-// One line per set, e.g. "Set 2   8 right · 2 wrong · avg 2.6 s". Average
-// is over the right (green) reps; "can't see you" reps aren't counted.
+// Right / wrong count and average back-home times for a group of reps.
+// Averages are over the right (green) reps, overall and for forehand and
+// backhand cues; null if there are none. "Can't see you" reps don't count.
+function repStats(reps) {
+  const average = list => (list.length ? list.reduce((a, b) => a + b, 0) / list.length : null);
+  const right = reps.filter(e => e.verdict.pass);
+  const timesOf = side => right.filter(e => !side || e.side === side).map(e => e.verdict.time);
+  return {
+    right: right.length,
+    wrong: reps.filter(e => e.verdict.pass === false).length,
+    avg: average(timesOf()),
+    fh: average(timesOf('forehand')),
+    bh: average(timesOf('backhand')),
+    best: right.length ? Math.min(...timesOf()) : null,
+  };
+}
+
+function setStats() {
+  return [...new Set(checkLog.map(e => e.set))]
+    .map(set => ({ set, ...repStats(checkLog.filter(e => e.set === set)) }));
+}
+
+const secondsOrDash = v => (v === null ? '–' : v.toFixed(1));
+const secondsText = v => (v === null ? '–' : `${v.toFixed(1)} s`);
+
+// The rest screen's table: Set, ✓, ✗, Avg, FH, BH.
+function progressTable(sets) {
+  const table = document.createElement('table');
+  const row = (cells, tag) => {
+    const tr = document.createElement('tr');
+    for (const text of cells) {
+      const cell = document.createElement(tag);
+      cell.textContent = text;
+      tr.append(cell);
+    }
+    return tr;
+  };
+  table.append(row(['Set', '✓', '✗', 'Avg', 'FH', 'BH'], 'th'));
+  for (const s of sets) {
+    table.append(row([s.set, s.right, s.wrong, secondsOrDash(s.avg), secondsOrDash(s.fh), secondsOrDash(s.bh)], 'td'));
+  }
+  return table;
+}
+
+// For the results list and Copy results, e.g.
+// "Set 2   8 right · 2 wrong · avg 2.6 s · FH 2.5 s · BH 2.8 s".
 function setSummaries() {
-  const numbers = [...new Set(checkLog.map(e => e.set))];
-  return numbers.map(set => {
-    const reps = checkLog.filter(e => e.set === set);
-    const times = reps.filter(e => e.verdict.pass).map(e => e.verdict.time);
-    const wrong = reps.filter(e => e.verdict.pass === false).length;
-    const avg = times.length ? `${(times.reduce((a, b) => a + b, 0) / times.length).toFixed(1)} s` : '–';
-    return `Set ${set}   ${times.length} right · ${wrong} wrong · avg ${avg}`;
-  });
+  return setStats().map(s => `Set ${s.set}   ${s.right} right · ${s.wrong} wrong · avg ${secondsText(s.avg)}`
+    + ` · FH ${secondsText(s.fh)} · BH ${secondsText(s.bh)}`);
 }
 
 function showResults() {
