@@ -2,7 +2,7 @@
 
 A web app for shadow-swing practice. It gives random cues so the player reacts instead of planning the next stroke. Used outdoors on a rooftop, with an iPhone or iPad placed a few metres in front of the player.
 
-Current version: **2.12** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
+Current version: **2.13** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
 
 ## Working style (important)
 
@@ -190,6 +190,7 @@ Built in 5 stages, each tested outdoors (phone ~3 m away, sunlight) before the n
 - Stage 1 outdoor test (phone + iPad): racket meeting ball visible, speed realistic, figure bigger upright (sideways ~40% of the height; matters from stage 3, when Camera check wants the phone sideways).
 - **Stage 2a (v2.8–2.11):** each loop picks `figureShot = pickShot()` (Settings sliders, purely random). After `HIT_AT` the ball flies to a bounce toward the cue's side, then out of the screen (wide: past the side; body: past the bottom near the middle), growing. Wide bounce = `FIGURE.wideBounce` 85% of the way to the screen edge, max `wideBounceMax` 1.3 (v2.9; 0.45 looked too like body). Body bounce = `bodyBounce` 0.15 (v2.10; at 0.06 body forehand / backhand couldn't be told apart). Flight time = the **Ball time** setting (`ballSeconds`, v2.11), bounce at `FIGURE.bounceShare` 54% of it (`bounceAt()` / `goneAt()`); real speed (0.65 s) was too fast, the user wants to swing and meet the ball as it leaves the screen. `goneAt()` + `answerDelay` → the answer (`#figure-answer`, same triangles via the shared `.cue-arrow` class, white frame, figure hidden) for `answerSeconds`. "Serve N" top left. The user accepted 2a ("It's good").
 - **Stage 2b (v2.12), body clues:** `cluePoses(shot, side)` copies `POSES` and adds the clues for this serve, scaled by `c` = side × (1 for wide, `CLUES.bodyShare` 0.5 for body): **toss** (left hand in toss/back poses moved `TOSS_SHIFT` 0.12 × c × `CLUES.toss`; the racket arm in drop/hit follows, so the ball still meets the racket), **lean** (upper body `LEAN_SHIFT` 0.06 × c × `CLUES.lean` at the hit, 1.5× in the finish, hips less), **finish** (racket arm slides between `FINISH_LEFT` and the right-side finish by `CLUES.finish`). `FIGURE.showBall` false hides the ball after the hit. These clues are made to be learnable, not an exact copy of real servers. Next: tune strengths until reading is possible but not free.
+- **Tuning round 1 (v2.13):** at strength 1 the user found it "hard to tell" → `CLUES` toss 1.75, lean 2, bodyShare 0.6; lean now starts at half in back/drop poses (visible longer), and the racket arm in drop/hit moves only `toss − lean` (the lean carries the rest), so the arm doesn't cross the head.
 
 ## Testing
 

@@ -1276,13 +1276,14 @@ const FIGURE = {
 // Body clues: how strongly the figure shows where the serve goes.
 // 0 = off, 1 = normal, 2 = twice as much. Body serves get bodyShare of it.
 const CLUES = {
-  toss: 1,        // ball tossed toward that side (the racket follows to meet it)
-  lean: 1,        // upper body leans that way at the hit and in the finish
+  toss: 1.75,     // ball tossed toward that side (the body leans to meet it)
+  lean: 2,        // upper body leans that way from the racket-back pose to the finish
   finish: 1,      // racket finishes on that side
-  bodyShare: 0.5,
+  bodyShare: 0.6,
 };
 const TOSS_SHIFT = 0.12;   // at strength 1, wide: toss this far across (figure heights)
-const LEAN_SHIFT = 0.06;   //   and lean this far at the hit (1.5× in the finish)
+const LEAN_SHIFT = 0.06;   //   and lean this far at the hit (half with the racket
+                           //   back, 1.5× in the finish)
 const FIGURE_TOP = 1.8;       // highest point drawn (the toss), in figure heights
 const FIGURE_BOTTOM = 0.3;    // room below the feet for the bounce
 const RACKET_LENGTH = 0.38;   // a 69 cm racket for a 1.8 m player
@@ -1385,10 +1386,16 @@ function cluePoses(shot, side) {
     shift(poses[name], ['lElbow'], toss / 2);
     shift(poses[name], ['lHand'], toss);
   }
-  shift(poses.drop, RACKET_ARM, toss / 2);
-  shift(poses.hit, RACKET_ARM, toss);
-
+  // The lean below carries the racket part of the way to the toss; the arm
+  // reaches the rest, so the racket still meets the ball.
   const lean = c * CLUES.lean * LEAN_SHIFT;
+  shift(poses.drop, RACKET_ARM, (toss - lean) / 2);
+  shift(poses.hit, RACKET_ARM, toss - lean);
+
+  for (const name of ['back', 'drop']) {
+    shift(poses[name], UPPER_BODY, lean / 2);
+    shift(poses[name], ['rHip', 'lHip'], lean / 5);
+  }
   shift(poses.hit, UPPER_BODY, lean);
   shift(poses.hit, ['rHip', 'lHip'], lean * 0.4);
   shift(poses.finish, UPPER_BODY, lean * 1.5);

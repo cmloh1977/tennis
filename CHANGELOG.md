@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.13 — 2026-10-29
+
+### Figure test: stronger, earlier body clues
+- After the rooftop test ("hard to tell"), the clues are bigger and show earlier:
+  - **Toss** goes further to the side (1.75× before).
+  - **Lean** is twice as big and starts already in the racket-back pose, so you see it for longer. The body leans into the toss, so the racket arm no longer reaches across the head.
+  - **Body** serves show 60% of the clue (was 50%).
+
 ## v2.12 — 2026-10-29
 
 ### Figure test: body clues (issue #5, stage 2, step b)
