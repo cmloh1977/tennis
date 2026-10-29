@@ -1251,8 +1251,9 @@ document.getElementById('close-camera').addEventListener('click', closeCamera);
 // ---------- Figure test (issue #5, stages 1–2) ----------
 // A white stick figure (the opponent, facing you across the net) serves on a
 // loop. Each serve goes at random to your forehand or backhand, wide or body
-// (from the Settings). The figure gives it away (toss, lean, finish), the ball
-// flies toward you, then the answer appears as the usual triangles. Call out
+// (from the Settings). The figure gives it away the way real right-handed
+// servers do (simplified): where it stands, the toss, the swing at contact and
+// the ball's spin. Then the answer appears as the usual triangles. Call out
 // each serve before the answer.
 
 // Easy to tweak after an outdoor test.
@@ -1271,19 +1272,32 @@ const FIGURE = {
   bounceShare: 0.54,   // the bounce comes this far into the ball's flight
                        // (flight time = the Ball time setting)
   showBall: true,      // false = ball hidden after the hit: read the body only
+  courtShare: 0.3,     // deuce / ad court: figure this share of the way to the screen edge,
+  courtMax: 0.6,       //   but at most this many figure heights from the middle
 };
 
-// Body clues: how strongly the figure shows where the serve goes.
-// 0 = off, 1 = normal, 2 = twice as much. Body serves get bodyShare of it.
+// The three serves, as real right-handed servers hit them (simplified).
+// "Your right" / "your left" = the side of the screen the ball goes to.
+//   slice = wide to your right, from the deuce court (figure on your left):
+//           toss out to your left, racket brushes across toward your right,
+//           ball curves to your right and stays low.
+//   kick  = wide to your left, from the ad court (figure on your right):
+//           toss over the head, back arched, racket brushes up toward your
+//           left, ball loops high and jumps to your left after the bounce.
+//   flat  = at your body, from either court: toss in front, racket straight
+//           through, ball straight at you.
+// The finish is the same for every serve (as in real tennis).
+// Clue strengths: 0 = off, 1 = normal, 2 = twice as much.
 const CLUES = {
-  toss: 1.75,     // ball tossed toward that side (the body leans to meet it)
-  lean: 2,        // upper body leans that way from the racket-back pose to the finish
-  finish: 1,      // racket finishes on that side
-  bodyShare: 0.6,
+  toss: 1,     // where the toss goes (and where the racket meets the ball)
+  swing: 1,    // which way the racket brushes just after contact
+  curve: 1,    // the ball's curve, loop and kick
 };
-const TOSS_SHIFT = 0.12;   // at strength 1, wide: toss this far across (figure heights)
-const LEAN_SHIFT = 0.06;   //   and lean this far at the hit (half with the racket
-                           //   back, 1.5× in the finish)
+const SERVE_TYPES = {
+  slice: { court: -1, toss: [-0.10, -0.03], arch: 0,    tip: [0.36, 0.06],   bulge: [-0.15, 0], out: 0.05 },
+  kick:  { court: 1,  toss: [0.06, 0],      arch: 0.04, tip: [-0.30, 0.22],  bulge: [0, 0.12],  out: 0.7 },
+  flat:  { court: 0,  toss: [0, 0],         arch: 0,    tip: [0.02, -0.38],  bulge: [0, 0] },
+};
 const FIGURE_TOP = 1.8;       // highest point drawn (the toss), in figure heights
 const FIGURE_BOTTOM = 0.3;    // room below the feet for the bounce
 const RACKET_LENGTH = 0.38;   // a 69 cm racket for a 1.8 m player
@@ -1336,9 +1350,6 @@ const POSES = {
     lHip: [0.08, 0.50], lKnee: [0.10, 0.27], lFoot: [0.09, 0],
   },
 };
-// The racket arm finishing on your left instead (the "finish" clue slides
-// between this and the finish above).
-const FINISH_LEFT = { rElbow: [-0.17, 0.62], rHand: [-0.22, 0.47], racket: [-0.36, 0.15] };
 const RACKET_ARM = ['rElbow', 'rHand', 'racket'];
 const UPPER_BODY = ['head', 'neck', 'rShoulder', 'lShoulder', 'lElbow', 'lHand', ...RACKET_ARM];
 
@@ -1346,7 +1357,7 @@ const UPPER_BODY = ['head', 'neck', 'rShoulder', 'lShoulder', 'lElbow', 'lHand',
 // Holding a pose = the same pose twice in a row.
 const SERVE_KEYS = [
   ['ready', 0], ['ready', 1.0], ['toss', 1.6], ['back', 1.95],
-  ['drop', 2.15], ['hit', 2.27], ['finish', 2.72], ['finish', 3.3], ['ready', 4.1],
+  ['drop', 2.15], ['hit', 2.27], ['through', 2.40], ['finish', 2.85], ['finish', 3.3], ['ready', 4.1],
 ];
 const TOSS_AT = 1.6;      // ball leaves the hand
 const HIT_AT = 2.27;      // ball meets the racket
@@ -1367,39 +1378,50 @@ const figureAnswer = document.getElementById('figure-answer');
 let figureRunning = false;
 let figureStart = 0;
 let figureServe = -1;   // which serve of the loop is playing (0 = first)
-let figureShot = null;  // { side, placement } of that serve
+let figureShot = null;  // { side, placement, court } of that serve
 
 const lerp = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
 const smoothStep = k => k * k * (3 - 2 * k);   // starts and stops gently
 
-// The saved poses with this serve's clues added. side = +1 (your right) or -1.
-function cluePoses(shot, side) {
+// Which serve the figure hits: side = +1 (ball to your right) or -1.
+function serveTypeOf(shot, side) {
+  if (shot.placement !== 'wide') return 'flat';
+  return side > 0 ? 'slice' : 'kick';
+}
+
+// The saved poses with this serve's clues added, moved courtX across the
+// screen (deuce court = your left, ad court = your right).
+function cluePoses(type, courtX) {
   const poses = JSON.parse(JSON.stringify(POSES));
-  const c = side * (shot.placement === 'wide' ? 1 : CLUES.bodyShare);
-  const shift = (pose, parts, dx) => { for (const part of parts) pose[part][0] += dx; };
+  const serve = SERVE_TYPES[type];
+  const move = (pose, parts, [dx, dy]) => {
+    for (const part of parts) { pose[part][0] += dx; pose[part][1] += dy; }
+  };
+  const scaled = ([x, y], k) => [x * k, y * k];
 
-  const k = Math.min(1, Math.max(0, 0.5 + 0.5 * c * CLUES.finish));
-  for (const part of RACKET_ARM) poses.finish[part] = lerp(FINISH_LEFT[part], poses.finish[part], k);
-
-  const toss = c * CLUES.toss * TOSS_SHIFT;
+  // Toss: the left hand lets go there, and the racket meets the ball there.
+  const toss = scaled(serve.toss, CLUES.toss);
   for (const name of ['toss', 'back']) {
-    shift(poses[name], ['lElbow'], toss / 2);
-    shift(poses[name], ['lHand'], toss);
+    move(poses[name], ['lElbow'], scaled(toss, 0.5));
+    move(poses[name], ['lHand'], toss);
   }
-  // The lean below carries the racket part of the way to the toss; the arm
-  // reaches the rest, so the racket still meets the ball.
-  const lean = c * CLUES.lean * LEAN_SHIFT;
-  shift(poses.drop, RACKET_ARM, (toss - lean) / 2);
-  shift(poses.hit, RACKET_ARM, toss - lean);
+  move(poses.drop, RACKET_ARM, scaled(toss, 0.5));
+  move(poses.hit, RACKET_ARM, toss);
+  // Kick: the back arches under a toss over the head.
+  for (const name of ['back', 'drop', 'hit']) move(poses[name], UPPER_BODY, [serve.arch * CLUES.toss, 0]);
 
-  for (const name of ['back', 'drop']) {
-    shift(poses[name], UPPER_BODY, lean / 2);
-    shift(poses[name], ['rHip', 'lHip'], lean / 5);
-  }
-  shift(poses.hit, UPPER_BODY, lean);
-  shift(poses.hit, ['rHip', 'lHip'], lean * 0.4);
-  shift(poses.finish, UPPER_BODY, lean * 1.5);
-  shift(poses.finish, ['rHip', 'lHip'], lean * 0.6);
+  // Just after contact the racket brushes the way the spin goes.
+  const through = JSON.parse(JSON.stringify(poses.hit));
+  const flatTip = SERVE_TYPES.flat.tip;
+  const tip = lerp(flatTip, serve.tip, CLUES.swing);
+  through.rElbow[1] -= 0.05;
+  // The hand drops a little (less for the slice, so its racket sweeps above the head).
+  const handMove = type === 'flat' ? 0 : Math.sign(serve.tip[0]) * 0.06 * CLUES.swing;
+  through.rHand = [through.rHand[0] + handMove, through.rHand[1] - (type === 'slice' ? 0.02 : 0.12)];
+  through.racket = [through.rHand[0] + tip[0], through.rHand[1] + tip[1]];
+  poses.through = through;
+
+  for (const name in poses) move(poses[name], Object.keys(poses[name]), [courtX, 0]);
   return poses;
 }
 
@@ -1422,10 +1444,10 @@ function contactPoint(poses) {
 
 // The ball: in the left hand, then a real toss (up and falling back) that
 // reaches the contact point exactly at the hit. After the hit it comes toward
-// you: down to the bounce, then up and out of the screen, getting bigger as it
-// comes closer. side = +1 (your right) or -1; edges = screen edges in figure
-// heights. Returns { at, size }, or null when not drawn.
-function ballAt(t, poses, pose, shot, side, edges) {
+// you with the serve's spin: down to the bounce, then out of the screen,
+// getting bigger as it comes closer. side = +1 (your right) or -1; edges =
+// screen edges in figure heights. Returns { at, size }, or null when not drawn.
+function ballAt(t, poses, pose, type, side, edges) {
   if (t < TOSS_AT) return { at: [pose.lHand[0], pose.lHand[1] + FIGURE.ballSize], size: FIGURE.ballSize };
   if (t < HIT_AT) {
     const start = poseAt(TOSS_AT, poses).lHand;
@@ -1439,17 +1461,23 @@ function ballAt(t, poses, pose, shot, side, edges) {
   }
   if (t >= goneAt() || !FIGURE.showBall) return null;
 
-  const wide = shot.placement === 'wide';
-  const across = wide ? Math.min(FIGURE.wideBounce * edges.side, FIGURE.wideBounceMax) : FIGURE.bodyBounce;
+  const serve = SERVE_TYPES[type];
+  const across = type === 'flat' ? FIGURE.bodyBounce
+    : Math.min(FIGURE.wideBounce * edges.side, FIGURE.wideBounceMax);
   const bounce = [side * across, -FIGURE_BOTTOM * 0.7];
   const bounceSize = FIGURE.ballSize * 1.8, outSize = FIGURE.ballSize * 4;
   if (t < bounceAt()) {
+    // Slice bends sideways, kick loops up, flat goes straight.
     const k = (t - HIT_AT) / (bounceAt() - HIT_AT);
-    return { at: lerp(contactPoint(poses), bounce, k),
+    const bend = Math.sin(Math.PI * k) * CLUES.curve;
+    const [x, y] = lerp(contactPoint(poses), bounce, k);
+    return { at: [x + serve.bulge[0] * bend, y + serve.bulge[1] * bend],
       size: FIGURE.ballSize + (bounceSize - FIGURE.ballSize) * k };
   }
-  // Wide: out past the side of the screen. Body: out past the bottom, near the middle.
-  const out = wide ? [side * (edges.side + outSize), 0.25] : [side * 0.35, edges.bottom - outSize];
+  // Wide: out past the side of the screen (slice low, kick high).
+  // Body: out past the bottom, near the middle.
+  const out = type === 'flat' ? [side * 0.35, edges.bottom - outSize]
+    : [side * (edges.side + outSize), 0.25 + (serve.out - 0.25) * CLUES.curve];
   const k = (t - bounceAt()) / (goneAt() - bounceAt());
   return { at: lerp(bounce, out, k ** 1.5), size: bounceSize + (outSize - bounceSize) * k };
 }
@@ -1480,7 +1508,7 @@ function drawFigure(now) {
   const serve = Math.floor(elapsed / loop);
   if (serve !== figureServe) {
     figureServe = serve;
-    figureShot = pickShot();
+    figureShot = { ...pickShot(), court: Math.random() < 0.5 ? -1 : 1 };
     figureStatus.textContent = `Serve ${serve + 1}`;
   }
   const t = elapsed - serve * loop;
@@ -1494,7 +1522,9 @@ function drawFigure(now) {
   if (answering) return;
 
   const side = pointsRight ? 1 : -1;
-  const poses = cluePoses(figureShot, side);
+  const type = serveTypeOf(figureShot, side);
+  const court = SERVE_TYPES[type].court || figureShot.court || 1;
+  const poses = cluePoses(type, court * Math.min(FIGURE.courtShare * edges.side, FIGURE.courtMax));
   const pose = poseAt(t, poses);
 
   ctx.strokeStyle = ctx.fillStyle = '#fff';
@@ -1528,7 +1558,7 @@ function drawFigure(now) {
   ctx.ellipse(cx, cy, RACKET_LENGTH * 0.28 * unit, RACKET_LENGTH * 0.19 * unit, -angle, 0, 2 * Math.PI);
   ctx.fill();
 
-  const ball = ballAt(t, poses, pose, figureShot, side, edges);
+  const ball = ballAt(t, poses, pose, type, side, edges);
   if (ball) dot(ball.at, ball.size);
 }
 

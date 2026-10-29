@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.14 — 2026-10-29
+
+### Figure test: realistic serve clues
+- The made-up clues (sideways lean, racket finishing on the ball's side) are gone. The figure now serves the way real right-handed servers do, simplified:
+  - **Wide to your right = slice from the deuce court:** the figure stands on your left, tosses out to your left, the racket brushes across toward your right, and the ball curves to your right and stays low.
+  - **Wide to your left = kick from the ad court:** the figure stands on your right, tosses over its head with the back arched, the racket brushes up toward your left, and the ball loops and jumps high to your left after the bounce.
+  - **Body = flat, from either court:** toss in front, racket straight through, ball straight at you.
+  - The **finish is the same** for every serve, as in real tennis.
+- Clue strengths are in `CLUES` in `app.js`: `toss`, `swing`, `curve` (0 = off, 1 = normal, 2 = twice as much).
+
 ## v2.13 — 2026-10-29
 
 ### Figure test: stronger, earlier body clues
