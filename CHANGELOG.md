@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.11 — 2026-10-29
+
+### Ball time setting
+- New **Ball time** slider in Settings: how long from the opponent's hit in the Figure test until the ball leaves the screen. **0.6 – 2.5 s**, default 1.3 s (as in v2.10). A real serve takes about 0.65 s.
+- The bounce always comes a little past halfway, so the whole flight speeds up or slows down together.
+
 ## v2.10 — 2026-10-29
 
 ### Figure test: slower ball, body bounce a little wider

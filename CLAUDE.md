@@ -2,7 +2,7 @@
 
 A web app for shadow-swing practice. It gives random cues so the player reacts instead of planning the next stroke. Used outdoors on a rooftop, with an iPhone or iPad placed a few metres in front of the player.
 
-Current version: **2.10** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
+Current version: **2.11** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
 
 ## Working style (important)
 
@@ -115,6 +115,7 @@ The last-used mode is remembered.
 | Sound / screen sync | −150 to +150 ms | 0 |
 | Camera check (Return / Volley) | Off / On | Off |
 | Result → next serve (shown only with Camera check) | 0.5 – 5 s | 1.2 s |
+| Ball time (Figure test: opponent's hit → ball leaves the screen) | 0.6 – 2.5 s | 1.3 s |
 
 - Defined in `DEFAULT_SETTINGS` and `SLIDERS` in `app.js`. Fixed timings (wait range, cue length, volley factor, tick lead, rally shot range, STOP length) are in `TIMING`.
 - Saved in `localStorage` under `tennis-trainer-v1` (settings + mode), wrapped in try/catch. "Reset to defaults" button.
@@ -187,7 +188,7 @@ Built in 5 stages, each tested outdoors (phone ~3 m away, sunlight) before the n
 - Saved poses are in `POSES` (x across, y up, in figure heights; 1 = top of head); `SERVE_KEYS` says when each pose is reached; `poseAt()` slides between them (smoothstep). The toss is real gravity (`ballAt()`), landing on the racket at `HIT_AT`; the ball is hidden after the hit (flight comes in stage 2).
 - Size, line thickness, head / ball size, speed, pause, answer timing and bounce spots are in `FIGURE` in `app.js`. `size` covers the whole serve from the bounce (`FIGURE_BOTTOM` 0.3 below the feet) to the toss (`FIGURE_TOP` 1.8), so the body itself is under half the screen height.
 - Stage 1 outdoor test (phone + iPad): racket meeting ball visible, speed realistic, figure bigger upright (sideways ~40% of the height; matters from stage 3, when Camera check wants the phone sideways).
-- **Stage 2a (v2.8):** each loop picks `figureShot = pickShot()` (Settings sliders, purely random). After `HIT_AT` the ball flies to a bounce (toward the cue's side; v2.9: wide = `FIGURE.wideBounce` 85% of the way to the screen edge, max `wideBounceMax` 1.3; body = `bodyBounce`, 0.15 since v2.10: at 0.06 body forehand / backhand couldn't be told apart; the user found wide and body bounces too alike at 0.45 / 0.12). Ball flight `toBounceSeconds` 0.7 + `afterBounceSeconds` 0.6 (v2.10; real speed 0.42 + 0.23 was too fast: the user wants to swing and meet the ball as it leaves the screen) and out of the screen (wide: past the side; body: past the bottom near the middle), growing; `GONE_AT` + `answerDelay` → the answer (`#figure-answer`, same triangles via the shared `.cue-arrow` class, white frame, figure hidden) for `answerSeconds`. "Serve N" top left. Body clues (toss, lean, finish) come in step 2b.
+- **Stage 2a (v2.8–2.11):** each loop picks `figureShot = pickShot()` (Settings sliders, purely random). After `HIT_AT` the ball flies to a bounce toward the cue's side, then out of the screen (wide: past the side; body: past the bottom near the middle), growing. Wide bounce = `FIGURE.wideBounce` 85% of the way to the screen edge, max `wideBounceMax` 1.3 (v2.9; 0.45 looked too like body). Body bounce = `bodyBounce` 0.15 (v2.10; at 0.06 body forehand / backhand couldn't be told apart). Flight time = the **Ball time** setting (`ballSeconds`, v2.11), bounce at `FIGURE.bounceShare` 54% of it (`bounceAt()` / `goneAt()`); real speed (0.65 s) was too fast, the user wants to swing and meet the ball as it leaves the screen. `goneAt()` + `answerDelay` → the answer (`#figure-answer`, same triangles via the shared `.cue-arrow` class, white frame, figure hidden) for `answerSeconds`. "Serve N" top left. Body clues (toss, lean, finish) come in step 2b.
 
 ## Testing
 

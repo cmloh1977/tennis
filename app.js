@@ -16,6 +16,7 @@ const DEFAULT_SETTINGS = {
   syncOffsetMs: 0,         // + shows the screen later, - plays the voice later
   cameraCheck: false,      // watch with the camera and show what it saw (Return/Volley)
   nextServeSeconds: 1.2,   // Camera check: from the green / red card to the next beep
+  ballSeconds: 1.3,        // opponent figure: from its hit until the ball leaves the screen
 };
 
 // Fixed timings (not on the Settings screen).
@@ -52,6 +53,9 @@ const SLIDERS = [
   { key: 'nextServeSeconds', label: 'Result → next serve', min: 0.5, max: 5, step: 0.1,
     show: v => `about ${v.toFixed(1)} s from the card to the next beep`,
     hint: 'Half of it shows the green / red card (at most 2 s), the rest is a short random wait.' },
+  { key: 'ballSeconds', label: 'Ball time', min: 0.6, max: 2.5, step: 0.1,
+    show: v => `${v.toFixed(1)} s from the opponent’s hit to the ball leaving the screen`,
+    hint: 'Figure test. A real serve takes about 0.65 s. Longer = time to swing and meet the ball as it leaves the screen.' },
   { key: 'syncOffsetMs', label: 'Sound / screen sync', min: -150, max: 150, step: 10,
     show: v => (v === 0 ? 'no adjustment'
       : v > 0 ? `screen ${v} ms later` : `voice ${-v} ms later`),
@@ -1263,8 +1267,8 @@ const FIGURE = {
   wideBounce: 0.85,    // wide bounce: share of the way from the middle to the screen edge,
   wideBounceMax: 1.3,  //   but at most this many figure heights out (wide screens)
   bodyBounce: 0.15,    // body bounce, figure heights from the middle
-  toBounceSeconds: 0.7,    // ball flight: hit to bounce (a real serve is about 0.4)
-  afterBounceSeconds: 0.6, //   bounce to leaving the screen (real: about 0.25)
+  bounceShare: 0.54,   // the bounce comes this far into the ball's flight
+                       // (flight time = the Ball time setting)
 };
 const FIGURE_TOP = 1.8;       // highest point drawn (the toss), in figure heights
 const FIGURE_BOTTOM = 0.3;    // room below the feet for the bounce
@@ -1327,8 +1331,9 @@ const SERVE_KEYS = [
 ];
 const TOSS_AT = 1.6;      // ball leaves the hand
 const HIT_AT = 2.27;      // ball meets the racket
-const BOUNCE_AT = HIT_AT + FIGURE.toBounceSeconds;        // ball bounces in front of you
-const GONE_AT = BOUNCE_AT + FIGURE.afterBounceSeconds;    // ball has left the screen
+// The ball bounces in front of you, then leaves the screen (Ball time setting).
+const bounceAt = () => HIT_AT + settings.ballSeconds * FIGURE.bounceShare;
+const goneAt = () => HIT_AT + settings.ballSeconds;
 
 const FIGURE_BONES = [
   ['neck', 'rShoulder'], ['neck', 'lShoulder'], ['rShoulder', 'rElbow'], ['rElbow', 'rHand'],
@@ -1382,20 +1387,20 @@ function ballAt(t, pose, shot, side, edges) {
     return { at: [start[0] + (end[0] - start[0]) * s / flight,
       start[1] + upSpeed * s - GRAVITY * s * s / 2], size: FIGURE.ballSize };
   }
-  if (t >= GONE_AT) return null;
+  if (t >= goneAt()) return null;
 
   const wide = shot.placement === 'wide';
   const across = wide ? Math.min(FIGURE.wideBounce * edges.side, FIGURE.wideBounceMax) : FIGURE.bodyBounce;
   const bounce = [side * across, -FIGURE_BOTTOM * 0.7];
   const bounceSize = FIGURE.ballSize * 1.8, outSize = FIGURE.ballSize * 4;
-  if (t < BOUNCE_AT) {
-    const k = (t - HIT_AT) / (BOUNCE_AT - HIT_AT);
+  if (t < bounceAt()) {
+    const k = (t - HIT_AT) / (bounceAt() - HIT_AT);
     return { at: lerp(contactPoint(), bounce, k),
       size: FIGURE.ballSize + (bounceSize - FIGURE.ballSize) * k };
   }
   // Wide: out past the side of the screen. Body: out past the bottom, near the middle.
   const out = wide ? [side * (edges.side + outSize), 0.25] : [side * 0.35, edges.bottom - outSize];
-  const k = (t - BOUNCE_AT) / (GONE_AT - BOUNCE_AT);
+  const k = (t - bounceAt()) / (goneAt() - bounceAt());
   return { at: lerp(bounce, out, k ** 1.5), size: bounceSize + (outSize - bounceSize) * k };
 }
 
@@ -1419,7 +1424,7 @@ function drawFigure(now) {
   const edges = { side: width / 2 / unit, bottom: (groundY - height) / unit };
 
   // A new serve (and a new random shot) at the start of each loop.
-  const answerAt = GONE_AT + FIGURE.answerDelay;
+  const answerAt = goneAt() + FIGURE.answerDelay;
   const loop = answerAt + FIGURE.answerSeconds + FIGURE.pauseSeconds;
   const elapsed = (now - figureStart) / 1000 * FIGURE.speed;
   const serve = Math.floor(elapsed / loop);
