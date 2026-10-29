@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.12 — 2026-10-29
+
+### Figure test: body clues (issue #5, stage 2, step b)
+- The figure now shows where the serve is going **before the ball is hit**:
+  - **Toss:** the ball goes up a little toward that side, and the racket follows to meet it there.
+  - **Lean:** the upper body leans that way at the hit and more in the finish.
+  - **Finish:** the racket comes down on that side (before, it always finished on your right).
+- Wide serves show the full clue, body serves about half.
+- Clue strengths are in `CLUES` in `app.js` (0 = off, 1 = normal, 2 = twice as much). `FIGURE.showBall = false` hides the ball after the hit, to practise reading the body only.
+
 ## v2.11 — 2026-10-29
 
 ### Ball time setting
