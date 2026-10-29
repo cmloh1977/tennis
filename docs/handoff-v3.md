@@ -50,3 +50,17 @@ Written 2026-10-28 at the end of the issue #4 thread. Paste this into a new thre
 ## How to work (from CLAUDE.md)
 
 Brainstorm here → write it up as a GitHub Issue on cmloh1977/tennis → new Code-tab session: "read issue #N and propose a plan". Plan first, small steps, test on the phone after each step, publish only on a yes.
+
+## Decided (2026-10-29)
+
+v3 = **issue #5, "Read the opponent — stick-figure server"** (https://github.com/cmloh1977/tennis/issues/5). A white stick figure on screen serves; the player reads wide / body and forehand / backhand from the serve. Five stages, each tested outdoors at 3 m before the next:
+
+1. Figure test screen (can you see it?)
+2. Clues + flying ball (can you read it?)
+3. Opponent setting in Return mode; the hit replaces the beep
+4. Levels 1–3 (triangles → ball only → swing only)
+5. Tune the camera check from the hit
+
+Not chosen for now: camera in Rally, progress history, spoken result, auto difficulty, weak-side cues, split-step check, instant replay, short/lob cues, presets.
+
+Next: new Code-tab session, "read issue #5 and propose a plan for Stage 1".
