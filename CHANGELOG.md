@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.9 — 2026-10-29
+
+### Figure test: wide and body bounces further apart
+- Wide serves now bounce much further out: most of the way to the screen edge (on a sideways screen up to about 1.3 figure heights from the middle). Before, the first bounce of a wide serve was hard to tell from a body serve.
+- Body serves bounce closer to the middle.
+
 ## v2.8 — 2026-10-29
 
 ### Figure test: random serves and a flying ball (issue #5, stage 2, step a)

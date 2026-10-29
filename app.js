@@ -1260,8 +1260,9 @@ const FIGURE = {
   pauseSeconds: 0.5,   // extra time standing still in "ready" after the answer
   answerDelay: 1.0,    // from the ball leaving the screen to the answer
   answerSeconds: 1.5,  // how long the answer (triangles) shows
-  wideBounce: 0.45,    // where the ball bounces, across from the middle: wide
-  bodyBounce: 0.12,    //   and body
+  wideBounce: 0.85,    // wide bounce: share of the way from the middle to the screen edge,
+  wideBounceMax: 1.3,  //   but at most this many figure heights out (wide screens)
+  bodyBounce: 0.06,    // body bounce, figure heights from the middle
 };
 const FIGURE_TOP = 1.8;       // highest point drawn (the toss), in figure heights
 const FIGURE_BOTTOM = 0.3;    // room below the feet for the bounce
@@ -1382,7 +1383,8 @@ function ballAt(t, pose, shot, side, edges) {
   if (t >= GONE_AT) return null;
 
   const wide = shot.placement === 'wide';
-  const bounce = [side * (wide ? FIGURE.wideBounce : FIGURE.bodyBounce), -FIGURE_BOTTOM * 0.7];
+  const across = wide ? Math.min(FIGURE.wideBounce * edges.side, FIGURE.wideBounceMax) : FIGURE.bodyBounce;
+  const bounce = [side * across, -FIGURE_BOTTOM * 0.7];
   const bounceSize = FIGURE.ballSize * 1.8, outSize = FIGURE.ballSize * 4;
   if (t < BOUNCE_AT) {
     const k = (t - HIT_AT) / (BOUNCE_AT - HIT_AT);
