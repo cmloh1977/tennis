@@ -41,7 +41,7 @@
       </ul>
       <p id="awake-method"></p>
     </details>
-    <p class="version">Version 2.14</p>
+    <p class="version">Version 2.15</p>
   </main>
 
   <!-- Settings screen: the sliders are added by app.js -->
@@ -55,6 +55,14 @@
       <div class="choice">
         <button class="hand-button" data-hand="right">Right</button>
         <button class="hand-button" data-hand="left">Left</button>
+      </div>
+    </div>
+    <div id="opponent-toggle" class="setting">
+      <span class="setting-label">Opponent</span>
+      <span class="setting-hint">Return mode only. A stick figure serves instead of the beep: split-step on its hit and read where the serve is going. The triangles and voice still come after the Difficulty gap, counted from the hit. Practise with Figure test first.</span>
+      <div class="choice">
+        <button class="opponent-button" data-on="false">Off</button>
+        <button class="opponent-button" data-on="true">On</button>
       </div>
     </div>
     <div id="camera-check-toggle" class="setting">
@@ -78,8 +86,10 @@
     <button id="reset-settings" class="plain-button reset">Reset to defaults</button>
   </section>
 
-  <!-- Session screen: neutral / forehand / backhand / stop / rest / result / instruction / pass / fail -->
+  <!-- Session screen: neutral (+ opponent) / forehand / backhand / stop / rest / result / instruction / pass / fail -->
   <section id="session" class="screen neutral" hidden>
+    <!-- Opponent setting: the stick figure serving (Return mode) -->
+    <canvas id="session-figure"></canvas>
     <div id="status"></div>
     <button id="end" class="end-button">End</button>
     <svg id="arrow" class="cue-arrow" viewBox="0 0 100 100" aria-hidden="true">

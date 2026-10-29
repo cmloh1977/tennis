@@ -2,7 +2,7 @@
 
 A web app for shadow-swing practice. It gives random cues so the player reacts instead of planning the next stroke. Used outdoors on a rooftop, with an iPhone or iPad placed a few metres in front of the player.
 
-Current version: **2.14** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
+Current version: **2.15** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
 
 ## Working style (important)
 
@@ -116,6 +116,7 @@ The last-used mode is remembered.
 | Camera check (Return / Volley) | Off / On | Off |
 | Result → next serve (shown only with Camera check) | 0.5 – 5 s | 1.2 s |
 | Ball time (Figure test: opponent's hit → ball leaves the screen) | 0.6 – 2.5 s | 1.3 s |
+| Opponent (Return mode: figure serves instead of the beep) | Off / On | Off |
 
 - Defined in `DEFAULT_SETTINGS` and `SLIDERS` in `app.js`. Fixed timings (wait range, cue length, volley factor, tick lead, rally shot range, STOP length) are in `TIMING`.
 - Saved in `localStorage` under `tennis-trainer-v1` (settings + mode), wrapped in try/catch. "Reset to defaults" button.
@@ -190,7 +191,8 @@ Built in 5 stages, each tested outdoors (phone ~3 m away, sunlight) before the n
 - Stage 1 outdoor test (phone + iPad): racket meeting ball visible, speed realistic, figure bigger upright (sideways ~40% of the height; matters from stage 3, when Camera check wants the phone sideways).
 - **Stage 2a (v2.8–2.11):** each loop picks `figureShot = pickShot()` (Settings sliders, purely random). After `HIT_AT` the ball flies to a bounce toward the cue's side, then out of the screen (wide: past the side; body: past the bottom near the middle), growing. Wide bounce = `FIGURE.wideBounce` 85% of the way to the screen edge, max `wideBounceMax` 1.3 (v2.9; 0.45 looked too like body). Body bounce = `bodyBounce` 0.15 (v2.10; at 0.06 body forehand / backhand couldn't be told apart). Flight time = the **Ball time** setting (`ballSeconds`, v2.11), bounce at `FIGURE.bounceShare` 54% of it (`bounceAt()` / `goneAt()`); real speed (0.65 s) was too fast, the user wants to swing and meet the ball as it leaves the screen. `goneAt()` + `answerDelay` → the answer (`#figure-answer`, same triangles via the shared `.cue-arrow` class, white frame, figure hidden) for `answerSeconds`. "Serve N" top left. The user accepted 2a ("It's good").
 - **Stage 2b, body clues.** v2.12–2.13 used made-up clues (toss toward the ball's side, sideways lean, finish on that side); the user found them hard to read and asked whether they were real. They weren't (the finish was the opposite of real tennis), so **v2.14 uses realistic serves** for a right-handed server, by the side of the screen the ball goes to: **slice** = wide to your right from the deuce court (figure on your left, toss out to your left, racket brushes across to your right, ball curves right and stays low); **kick** = wide to your left from the ad court (figure on your right, toss over the head, back arched, racket brushes up to your left, ball loops and jumps high left); **flat** = body, either court at random (toss in front, straight through). The finish is the same every serve.
-- Code: `SERVE_TYPES` (court, toss, arch, swing `tip`, flight `bulge`, kick `out` height), `serveTypeOf()`, `cluePoses(type, courtX)` (adds a `through` pose 0.13 s after the hit for the swing direction, then shifts everything by the court side: `FIGURE.courtShare` 0.3 of the way to the edge, max `courtMax` 0.6), `ballAt()` bends the flight. Strengths in `CLUES` (`toss`, `swing`, `curve`). Simplified coaching knowledge, not a model of a specific player; the racket-face angle can't be shown, the swing direction stands in for it. Next: rooftop test, then tune.
+- Code: `SERVE_TYPES` (court, toss, arch, swing `tip`, flight `bulge`, kick `out` height), `serveTypeOf()`, `cluePoses(type, courtX)` (adds a `through` pose 0.13 s after the hit for the swing direction, then shifts everything by the court side: `FIGURE.courtShare` 0.3 of the way to the edge, max `courtMax` 0.6), `ballAt()` bends the flight. Strengths in `CLUES` (`toss`, `swing`, `curve`). Simplified coaching knowledge, not a model of a specific player; the racket-face angle can't be shown, the swing direction stands in for it. The user tested v2.14 on the rooftop ("no problem"): stage 2 done.
+- **Stage 3 (v2.15), Opponent setting** (`opponent`, Off / On, default Off; Return mode only). `serveRep(run, gap, fixedShot, opponent)` picks the shot first; with opponent the screen is `neutral opponent` (`#session-figure` canvas shown), `showOpponent()` draws the ready pose during the usual wait, `opponentServes()` starts the serve from `TOSS_START` and resolves at the hit (replaces `beep()`), then the Difficulty gap, `hideOpponent()` and `showCue()`. `paintServe(canvas, t, shot)` is shared with the Figure test. No sound at the hit (closest to the issue; a hit sound was offered as an option). Camera check still times from the triangles (`cueShownAt`); timing from the hit is stage 4–5.
 
 ## Testing
 

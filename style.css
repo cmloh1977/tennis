@@ -320,3 +320,8 @@ input[type="range"]::-webkit-slider-thumb {
 .screen.figure.answer #figure-canvas,
 .screen.figure.answer #figure-status,
 .screen.figure.answer .end-button { visibility: hidden; }
+
+/* ---------- Opponent in Return mode ---------- */
+/* The serving figure fills the screen behind the status text and End button. */
+#session-figure { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
+#session.opponent #session-figure { display: block; }

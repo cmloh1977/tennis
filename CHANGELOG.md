@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.15 — 2026-10-30
+
+### Opponent in Return mode (issue #5, stage 3)
+- New **Opponent** setting (Off / On, default Off).
+- With Opponent **On**, each **Return** rep: the stick figure stands ready during the usual random wait, then serves the serve that's coming (the realistic clues from v2.14). **Its hit replaces the beep**: split-step on the hit. The ball flies toward you, and after your **Difficulty** gap (counted from the hit) the triangles and voice appear as before.
+- Camera check, results and the rest-screen table work as before (times still count from the triangles).
+- Volley, Return + Rally, the Tuning test and the Figure test are unchanged.
+
 ## v2.14 — 2026-10-29
 
 ### Figure test: realistic serve clues

@@ -17,6 +17,7 @@ const DEFAULT_SETTINGS = {
   cameraCheck: false,      // watch with the camera and show what it saw (Return/Volley)
   nextServeSeconds: 1.2,   // Camera check: from the green / red card to the next beep
   ballSeconds: 1.3,        // opponent figure: from its hit until the ball leaves the screen
+  opponent: false,         // Return mode: a stick figure serves instead of the beep
 };
 
 // Fixed timings (not on the Settings screen).
@@ -257,10 +258,14 @@ function waitExactly(seconds) {
 }
 
 // Neutral screen, random wait, beep, gap, cue. Used by all three modes and
-// the Tuning test (which passes its own shot). Returns the shot that was
-// cued (nothing if the session was ended).
-async function serveRep(run, gapSeconds, fixedShot = null) {
-  showScreen('neutral');
+// the Tuning test (which passes its own shot). With opponent, the stick
+// figure stands ready during the wait, then serves this shot, and its hit
+// replaces the beep. Returns the shot that was cued (nothing if the session
+// was ended).
+async function serveRep(run, gapSeconds, fixedShot = null, opponent = false) {
+  const shot = fixedShot || pickShot();
+  showScreen(opponent ? 'neutral opponent' : 'neutral');
+  if (opponent) showOpponent(shot);
   // Right after a Camera check card you're already back home and ready, so
   // the wait is the rest of the "Result → next serve" time. Still a little
   // random, so the beep can't be timed.
@@ -271,17 +276,19 @@ async function serveRep(run, gapSeconds, fixedShot = null) {
   await wait(randomBetween(minWait, maxWait));
   if (run.stopped) return;
 
-  beep();                              // split-step trigger
+  if (opponent) await opponentServes();   // split-step trigger: the figure's hit
+  else beep();                           // split-step trigger
+  if (run.stopped) return;
   await waitExactly(gapSeconds);
   if (run.stopped) return;
 
-  const shot = fixedShot || pickShot();
+  hideOpponent();
   showCue(shot);
   return shot;
 }
 
 async function returnRep(run) {
-  const shot = await serveRep(run, settings.gapSeconds);
+  const shot = await serveRep(run, settings.gapSeconds, null, settings.opponent);
   await wait(TIMING.cueSeconds);
   await showCheck(run, shot);
 }
@@ -382,6 +389,7 @@ function endSession() {
   currentRun = null;
   allowSleep();
   if (cameraUse === 'session') stopCamera();
+  hideOpponent();
   messageText.textContent = '';
   showScreen('neutral');
   sessionScreen.hidden = true;
@@ -530,6 +538,23 @@ for (const button of voiceButtons) {
   });
 }
 
+// Opponent on/off.
+const opponentButtons = document.querySelectorAll('.opponent-button');
+
+function showOpponentSetting() {
+  for (const button of opponentButtons) {
+    button.classList.toggle('selected', button.dataset.on === String(settings.opponent));
+  }
+}
+
+for (const button of opponentButtons) {
+  button.addEventListener('click', () => {
+    settings.opponent = button.dataset.on === 'true';
+    showOpponentSetting();
+    save();
+  });
+}
+
 // Camera check on/off.
 const cameraCheckButtons = document.querySelectorAll('.camera-check-button');
 
@@ -555,6 +580,7 @@ for (const button of cameraCheckButtons) {
 function showSettings() {
   showHandedness();
   showVoice();
+  showOpponentSetting();
   showCameraCheck();
   for (const { input, value, slider } of Object.values(sliderInputs)) {
     input.value = settings[slider.key];
@@ -1248,7 +1274,7 @@ copyResultsButton.addEventListener('click', async () => {
 document.getElementById('open-camera').addEventListener('click', openCamera);
 document.getElementById('close-camera').addEventListener('click', closeCamera);
 
-// ---------- Figure test (issue #5, stages 1–2) ----------
+// ---------- Opponent figure: Figure test and Return mode (issue #5) ----------
 // A white stick figure (the opponent, facing you across the net) serves on a
 // loop. Each serve goes at random to your forehand or backhand, wide or body
 // (from the Settings). The figure gives it away the way real right-handed
@@ -1359,6 +1385,7 @@ const SERVE_KEYS = [
   ['ready', 0], ['ready', 1.0], ['toss', 1.6], ['back', 1.95],
   ['drop', 2.15], ['hit', 2.27], ['through', 2.40], ['finish', 2.85], ['finish', 3.3], ['ready', 4.1],
 ];
+const TOSS_START = 1.0;   // end of the ready pose: the toss starts
 const TOSS_AT = 1.6;      // ball leaves the hand
 const HIT_AT = 2.27;      // ball meets the racket
 // The ball bounces in front of you, then leaves the screen (Ball time setting).
@@ -1482,15 +1509,14 @@ function ballAt(t, poses, pose, type, side, edges) {
   return { at: lerp(bounce, out, k ** 1.5), size: bounceSize + (outSize - bounceSize) * k };
 }
 
-function drawFigure(now) {
-  if (!figureRunning) return;
-  requestAnimationFrame(drawFigure);
-
+// Draws the figure serving shot ({ side, placement, court }) at time t
+// (seconds into the serve) on a full-screen canvas.
+function paintServe(canvas, t, shot) {
   const ratio = window.devicePixelRatio || 1;
-  const width = figureCanvas.clientWidth, height = figureCanvas.clientHeight;
-  if (figureCanvas.width !== Math.round(width * ratio)) figureCanvas.width = Math.round(width * ratio);
-  if (figureCanvas.height !== Math.round(height * ratio)) figureCanvas.height = Math.round(height * ratio);
-  const ctx = figureCanvas.getContext('2d');
+  const width = canvas.clientWidth, height = canvas.clientHeight;
+  if (canvas.width !== Math.round(width * ratio)) canvas.width = Math.round(width * ratio);
+  if (canvas.height !== Math.round(height * ratio)) canvas.height = Math.round(height * ratio);
+  const ctx = canvas.getContext('2d');
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, width, height);
@@ -1501,29 +1527,10 @@ function drawFigure(now) {
   const at = ([x, y]) => [width / 2 + x * unit, groundY - y * unit];
   const edges = { side: width / 2 / unit, bottom: (groundY - height) / unit };
 
-  // A new serve (and a new random shot) at the start of each loop.
-  const answerAt = goneAt() + FIGURE.answerDelay;
-  const loop = answerAt + FIGURE.answerSeconds + FIGURE.pauseSeconds;
-  const elapsed = (now - figureStart) / 1000 * FIGURE.speed;
-  const serve = Math.floor(elapsed / loop);
-  if (serve !== figureServe) {
-    figureServe = serve;
-    figureShot = { ...pickShot(), court: Math.random() < 0.5 ? -1 : 1 };
-    figureStatus.textContent = `Serve ${serve + 1}`;
-  }
-  const t = elapsed - serve * loop;
-  const pointsRight = (figureShot.side === 'forehand') === (settings.handedness === 'right');
-
-  // The answer: the usual triangles and white frame, figure hidden.
-  const answering = t >= answerAt && t < answerAt + FIGURE.answerSeconds;
-  figureAnswer.classList.toggle('left', !pointsRight);
-  figureAnswer.classList.toggle('wide', figureShot.placement === 'wide');
-  figureScreen.classList.toggle('answer', answering);
-  if (answering) return;
-
+  const pointsRight = (shot.side === 'forehand') === (settings.handedness === 'right');
   const side = pointsRight ? 1 : -1;
-  const type = serveTypeOf(figureShot, side);
-  const court = SERVE_TYPES[type].court || figureShot.court || 1;
+  const type = serveTypeOf(shot, side);
+  const court = SERVE_TYPES[type].court || shot.court || 1;
   const poses = cluePoses(type, court * Math.min(FIGURE.courtShare * edges.side, FIGURE.courtMax));
   const pose = poseAt(t, poses);
 
@@ -1562,6 +1569,32 @@ function drawFigure(now) {
   if (ball) dot(ball.at, ball.size);
 }
 
+// Figure test: serves on a loop, each followed by the answer.
+function drawFigure(now) {
+  if (!figureRunning) return;
+  requestAnimationFrame(drawFigure);
+
+  // A new serve (and a new random shot) at the start of each loop.
+  const answerAt = goneAt() + FIGURE.answerDelay;
+  const loop = answerAt + FIGURE.answerSeconds + FIGURE.pauseSeconds;
+  const elapsed = (now - figureStart) / 1000 * FIGURE.speed;
+  const serve = Math.floor(elapsed / loop);
+  if (serve !== figureServe) {
+    figureServe = serve;
+    figureShot = { ...pickShot(), court: Math.random() < 0.5 ? -1 : 1 };
+    figureStatus.textContent = `Serve ${serve + 1}`;
+  }
+  const t = elapsed - serve * loop;
+  const pointsRight = (figureShot.side === 'forehand') === (settings.handedness === 'right');
+
+  // The answer: the usual triangles and white frame, figure hidden.
+  const answering = t >= answerAt && t < answerAt + FIGURE.answerSeconds;
+  figureAnswer.classList.toggle('left', !pointsRight);
+  figureAnswer.classList.toggle('wide', figureShot.placement === 'wide');
+  figureScreen.classList.toggle('answer', answering);
+  if (!answering) paintServe(figureCanvas, t, figureShot);
+}
+
 function openFigure() {
   homeScreen.hidden = true;
   figureScreen.hidden = false;
@@ -1582,6 +1615,34 @@ function closeFigure() {
 
 document.getElementById('open-figure').addEventListener('click', openFigure);
 document.getElementById('close-figure').addEventListener('click', closeFigure);
+
+// Return mode with the Opponent setting on: the figure stands ready on the
+// session screen during the wait, then serves; its hit is the split-step
+// trigger (stage 3). The triangles still come after the Difficulty gap.
+const sessionFigure = document.getElementById('session-figure');
+let opponent = null;   // { shot, start } while the figure is on the session screen
+
+function showOpponent(shot) {
+  opponent = { shot: { ...shot, court: Math.random() < 0.5 ? -1 : 1 }, start: null };
+  requestAnimationFrame(drawOpponent);
+}
+
+function drawOpponent(now) {
+  if (!opponent) return;
+  requestAnimationFrame(drawOpponent);
+  const t = opponent.start === null ? 0 : (now - opponent.start) / 1000 * FIGURE.speed;
+  paintServe(sessionFigure, t, opponent.shot);
+}
+
+// Starts the serve (from the toss) and resolves at the moment of the hit.
+function opponentServes() {
+  opponent.start = performance.now() - TOSS_START * 1000 / FIGURE.speed;
+  return waitExactly((HIT_AT - TOSS_START) / FIGURE.speed);
+}
+
+function hideOpponent() {
+  opponent = null;
+}
 
 // ---------- Start-up ----------
 loadSaved();
