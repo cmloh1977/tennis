@@ -2,7 +2,7 @@
 
 A web app for shadow-swing practice. It gives random cues so the player reacts instead of planning the next stroke. Used outdoors on a rooftop, with an iPhone or iPad placed a few metres in front of the player.
 
-Current version: **2.7** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
+Current version: **2.8** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
 
 ## Working style (important)
 
@@ -185,7 +185,9 @@ Built in 5 stages, each tested outdoors (phone ~3 m away, sunlight) before the n
 
 - **Stage 1, Figure test (v2.7):** Home button opens `#figure-screen`; `drawFigure()` draws a white stick figure on a `<canvas>` serving on a loop (ready → toss → racket back → drop → hit → finish), always the same. The opponent faces the player and is right-handed, so its racket arm is on the player's left.
 - Saved poses are in `POSES` (x across, y up, in figure heights; 1 = top of head); `SERVE_KEYS` says when each pose is reached; `poseAt()` slides between them (smoothstep). The toss is real gravity (`ballAt()`), landing on the racket at `HIT_AT`; the ball is hidden after the hit (flight comes in stage 2).
-- Size, line thickness, head / ball size, speed and pause are in `FIGURE` in `app.js`. `size` covers the whole serve up to the toss (`FIGURE_TOP` 1.8 figure heights), so the body itself is about half the screen height.
+- Size, line thickness, head / ball size, speed, pause, answer timing and bounce spots are in `FIGURE` in `app.js`. `size` covers the whole serve from the bounce (`FIGURE_BOTTOM` 0.3 below the feet) to the toss (`FIGURE_TOP` 1.8), so the body itself is under half the screen height.
+- Stage 1 outdoor test (phone + iPad): racket meeting ball visible, speed realistic, figure bigger upright (sideways ~40% of the height; matters from stage 3, when Camera check wants the phone sideways).
+- **Stage 2a (v2.8):** each loop picks `figureShot = pickShot()` (Settings sliders, purely random). After `HIT_AT` the ball flies to a bounce (`FIGURE.wideBounce` / `bodyBounce` across, toward the cue's side) and out of the screen (wide: past the side; body: past the bottom near the middle), growing; `GONE_AT` + `answerDelay` → the answer (`#figure-answer`, same triangles via the shared `.cue-arrow` class, white frame, figure hidden) for `answerSeconds`. "Serve N" top left. Body clues (toss, lean, finish) come in step 2b.
 
 ## Testing
 

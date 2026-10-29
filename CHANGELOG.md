@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.8 — 2026-10-29
+
+### Figure test: random serves and a flying ball (issue #5, stage 2, step a)
+- Each serve now goes at random to your **forehand or backhand**, **wide or body**, using your Handedness, Forehand / backhand and Wide / body settings.
+- After the hit the **ball flies toward you**: it bounces in front of you, gets bigger as it comes closer, and leaves the screen far out to the side (wide) or near the middle (body).
+- About 1 s later the **answer** shows as the usual triangles and white frame for 1.5 s, then the next serve starts. Call out each serve before the answer.
+- **Serve number** at the top left, so you can count how many you read right.
+- In the ready pose the racket is now held low and out to the side, so it no longer merges with the chest and ball.
+- The figure is a little smaller (about 14%) to leave room for the bounce.
+
 ## v2.7 — 2026-10-29
 
 ### Figure test (issue #5, stage 1)

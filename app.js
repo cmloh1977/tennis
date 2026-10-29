@@ -1244,20 +1244,27 @@ copyResultsButton.addEventListener('click', async () => {
 document.getElementById('open-camera').addEventListener('click', openCamera);
 document.getElementById('close-camera').addEventListener('click', closeCamera);
 
-// ---------- Figure test (issue #5, stage 1) ----------
+// ---------- Figure test (issue #5, stages 1–2) ----------
 // A white stick figure (the opponent, facing you across the net) serves on a
-// loop, always the same way. Only question for now: can you see it from 3 m?
+// loop. Each serve goes at random to your forehand or backhand, wide or body
+// (from the Settings); the ball flies toward you, then the answer appears as
+// the usual triangles. Call out each serve before the answer.
 
 // Easy to tweak after an outdoor test.
 const FIGURE = {
-  size: 0.85,          // share of the screen height used, feet to the top of the toss
+  size: 0.85,          // share of the screen height used, bounce to the top of the toss
   lineWidth: 0.05,     // line thickness, share of the figure's height (1 = top of head)
   headSize: 0.075,     // head radius, same unit
   ballSize: 0.04,      // ball radius, same unit
   speed: 1,            // 1 = real serve speed, 0.5 = half speed
-  pauseSeconds: 1.5,   // extra time standing still in "ready" before the next serve
+  pauseSeconds: 0.5,   // extra time standing still in "ready" after the answer
+  answerDelay: 1.0,    // from the ball leaving the screen to the answer
+  answerSeconds: 1.5,  // how long the answer (triangles) shows
+  wideBounce: 0.45,    // where the ball bounces, across from the middle: wide
+  bodyBounce: 0.12,    //   and body
 };
 const FIGURE_TOP = 1.8;       // highest point drawn (the toss), in figure heights
+const FIGURE_BOTTOM = 0.3;    // room below the feet for the bounce
 const RACKET_LENGTH = 0.38;   // a 69 cm racket for a 1.8 m player
 const GRAVITY = 9.81 / 1.8;   // in figure heights per second²
 
@@ -1267,8 +1274,8 @@ const GRAVITY = 9.81 / 1.8;   // in figure heights per second²
 const POSES = {
   ready: {
     head: [0, 0.91], neck: [0, 0.83],
-    rShoulder: [-0.11, 0.80], rElbow: [-0.15, 0.63], rHand: [-0.08, 0.52], racket: [0.12, 0.82],
-    lShoulder: [0.11, 0.80], lElbow: [0.15, 0.63], lHand: [0.07, 0.56],
+    rShoulder: [-0.11, 0.80], rElbow: [-0.17, 0.64], rHand: [-0.14, 0.50], racket: [-0.30, 0.80],
+    lShoulder: [0.11, 0.80], lElbow: [0.17, 0.64], lHand: [0.10, 0.56],
     rHip: [-0.07, 0.50], rKnee: [-0.09, 0.27], rFoot: [-0.12, 0],
     lHip: [0.07, 0.50], lKnee: [0.09, 0.27], lFoot: [0.12, 0],
   },
@@ -1315,8 +1322,10 @@ const SERVE_KEYS = [
   ['ready', 0], ['ready', 1.0], ['toss', 1.6], ['back', 1.95],
   ['drop', 2.15], ['hit', 2.27], ['finish', 2.72], ['finish', 3.3], ['ready', 4.1],
 ];
-const TOSS_AT = 1.6;   // ball leaves the hand
-const HIT_AT = 2.27;   // ball meets the racket; hidden after that until stage 2
+const TOSS_AT = 1.6;      // ball leaves the hand
+const HIT_AT = 2.27;      // ball meets the racket
+const BOUNCE_AT = 2.69;   // ball bounces in front of you
+const GONE_AT = 2.92;     // ball has left the screen
 
 const FIGURE_BONES = [
   ['neck', 'rShoulder'], ['neck', 'lShoulder'], ['rShoulder', 'rElbow'], ['rElbow', 'rHand'],
@@ -1326,8 +1335,12 @@ const FIGURE_BONES = [
 
 const figureScreen = document.getElementById('figure-screen');
 const figureCanvas = document.getElementById('figure-canvas');
+const figureStatus = document.getElementById('figure-status');
+const figureAnswer = document.getElementById('figure-answer');
 let figureRunning = false;
 let figureStart = 0;
+let figureServe = -1;   // which serve of the loop is playing (0 = first)
+let figureShot = null;  // { side, placement } of that serve
 
 const lerp = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
 const smoothStep = k => k * k * (3 - 2 * k);   // starts and stops gently
@@ -1350,18 +1363,36 @@ function contactPoint() {
 }
 
 // The ball: in the left hand, then a real toss (up and falling back) that
-// reaches the contact point exactly at the hit. Null = not drawn.
-function ballAt(t, pose) {
-  if (t >= HIT_AT) return null;
-  if (t < TOSS_AT) return [pose.lHand[0], pose.lHand[1] + FIGURE.ballSize];
-  const start = poseAt(TOSS_AT).lHand;
-  start[1] += FIGURE.ballSize;
-  const end = contactPoint();
-  const flight = HIT_AT - TOSS_AT;
-  const s = t - TOSS_AT;
-  const upSpeed = (end[1] - start[1] + GRAVITY * flight * flight / 2) / flight;
-  return [start[0] + (end[0] - start[0]) * s / flight,
-    start[1] + upSpeed * s - GRAVITY * s * s / 2];
+// reaches the contact point exactly at the hit. After the hit it comes toward
+// you: down to the bounce, then up and out of the screen, getting bigger as it
+// comes closer. side = +1 (your right) or -1; edges = screen edges in figure
+// heights. Returns { at, size }, or null when not drawn.
+function ballAt(t, pose, shot, side, edges) {
+  if (t < TOSS_AT) return { at: [pose.lHand[0], pose.lHand[1] + FIGURE.ballSize], size: FIGURE.ballSize };
+  if (t < HIT_AT) {
+    const start = poseAt(TOSS_AT).lHand;
+    start[1] += FIGURE.ballSize;
+    const end = contactPoint();
+    const flight = HIT_AT - TOSS_AT;
+    const s = t - TOSS_AT;
+    const upSpeed = (end[1] - start[1] + GRAVITY * flight * flight / 2) / flight;
+    return { at: [start[0] + (end[0] - start[0]) * s / flight,
+      start[1] + upSpeed * s - GRAVITY * s * s / 2], size: FIGURE.ballSize };
+  }
+  if (t >= GONE_AT) return null;
+
+  const wide = shot.placement === 'wide';
+  const bounce = [side * (wide ? FIGURE.wideBounce : FIGURE.bodyBounce), -FIGURE_BOTTOM * 0.7];
+  const bounceSize = FIGURE.ballSize * 1.8, outSize = FIGURE.ballSize * 4;
+  if (t < BOUNCE_AT) {
+    const k = (t - HIT_AT) / (BOUNCE_AT - HIT_AT);
+    return { at: lerp(contactPoint(), bounce, k),
+      size: FIGURE.ballSize + (bounceSize - FIGURE.ballSize) * k };
+  }
+  // Wide: out past the side of the screen. Body: out past the bottom, near the middle.
+  const out = wide ? [side * (edges.side + outSize), 0.25] : [side * 0.35, edges.bottom - outSize];
+  const k = (t - BOUNCE_AT) / (GONE_AT - BOUNCE_AT);
+  return { at: lerp(bounce, out, k * k), size: bounceSize + (outSize - bounceSize) * k };
 }
 
 function drawFigure(now) {
@@ -1377,13 +1408,32 @@ function drawFigure(now) {
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, width, height);
 
-  // Figure height in pixels, with the whole serve (up to the toss) on screen.
-  const unit = FIGURE.size * height / FIGURE_TOP;
-  const groundY = (height + FIGURE.size * height) / 2;
+  // Figure height in pixels, with the whole serve (bounce to toss) on screen.
+  const unit = FIGURE.size * height / (FIGURE_TOP + FIGURE_BOTTOM);
+  const groundY = (height + FIGURE.size * height) / 2 - FIGURE_BOTTOM * unit;
   const at = ([x, y]) => [width / 2 + x * unit, groundY - y * unit];
+  const edges = { side: width / 2 / unit, bottom: (groundY - height) / unit };
 
-  const loop = SERVE_KEYS[SERVE_KEYS.length - 1][1] + FIGURE.pauseSeconds;
-  const t = ((now - figureStart) / 1000 * FIGURE.speed) % loop;
+  // A new serve (and a new random shot) at the start of each loop.
+  const answerAt = GONE_AT + FIGURE.answerDelay;
+  const loop = answerAt + FIGURE.answerSeconds + FIGURE.pauseSeconds;
+  const elapsed = (now - figureStart) / 1000 * FIGURE.speed;
+  const serve = Math.floor(elapsed / loop);
+  if (serve !== figureServe) {
+    figureServe = serve;
+    figureShot = pickShot();
+    figureStatus.textContent = `Serve ${serve + 1}`;
+  }
+  const t = elapsed - serve * loop;
+  const pointsRight = (figureShot.side === 'forehand') === (settings.handedness === 'right');
+
+  // The answer: the usual triangles and white frame, figure hidden.
+  const answering = t >= answerAt && t < answerAt + FIGURE.answerSeconds;
+  figureAnswer.classList.toggle('left', !pointsRight);
+  figureAnswer.classList.toggle('wide', figureShot.placement === 'wide');
+  figureScreen.classList.toggle('answer', answering);
+  if (answering) return;
+
   const pose = poseAt(t);
 
   ctx.strokeStyle = ctx.fillStyle = '#fff';
@@ -1417,8 +1467,8 @@ function drawFigure(now) {
   ctx.ellipse(cx, cy, RACKET_LENGTH * 0.28 * unit, RACKET_LENGTH * 0.19 * unit, -angle, 0, 2 * Math.PI);
   ctx.fill();
 
-  const ball = ballAt(t, pose);
-  if (ball) dot(ball, FIGURE.ballSize);
+  const ball = ballAt(t, pose, figureShot, pointsRight ? 1 : -1, edges);
+  if (ball) dot(ball.at, ball.size);
 }
 
 function openFigure() {
@@ -1427,11 +1477,13 @@ function openFigure() {
   keepAwake();
   figureRunning = true;
   figureStart = performance.now();
+  figureServe = -1;
   requestAnimationFrame(drawFigure);
 }
 
 function closeFigure() {
   figureRunning = false;
+  figureScreen.classList.remove('answer');
   allowSleep();
   figureScreen.hidden = true;
   homeScreen.hidden = false;

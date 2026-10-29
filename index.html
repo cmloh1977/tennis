@@ -41,7 +41,7 @@
       </ul>
       <p id="awake-method"></p>
     </details>
-    <p class="version">Version 2.7</p>
+    <p class="version">Version 2.8</p>
   </main>
 
   <!-- Settings screen: the sliders are added by app.js -->
@@ -82,7 +82,7 @@
   <section id="session" class="screen neutral" hidden>
     <div id="status"></div>
     <button id="end" class="end-button">End</button>
-    <svg id="arrow" viewBox="0 0 100 100" aria-hidden="true">
+    <svg id="arrow" class="cue-arrow" viewBox="0 0 100 100" aria-hidden="true">
       <!-- Body = one triangle, wide = two of the same triangle (like
            fast-forward). app.js shows one. -->
       <g id="arrow-shape">
@@ -119,10 +119,19 @@
     <button id="close-camera" class="end-button">Done</button>
   </section>
 
-  <!-- Figure test: a white stick figure serves on a loop (issue #5, stage 1) -->
+  <!-- Figure test: a white stick figure serves on a loop; then the answer
+       shows as the usual triangles (issue #5, stages 1–2) -->
   <section id="figure-screen" class="screen figure" hidden>
     <canvas id="figure-canvas"></canvas>
+    <div id="figure-status"></div>
     <button id="close-figure" class="end-button">Done</button>
+    <svg id="figure-answer" class="cue-arrow" viewBox="0 0 100 100" aria-hidden="true">
+      <polygon class="body-shape" points="27,0 73,50 27,100" />
+      <g class="wide-shape">
+        <polygon points="0,0 46,50 0,100" />
+        <polygon points="54,0 100,50 54,100" />
+      </g>
+    </svg>
   </section>
 
   <script src="app.js"></script>
