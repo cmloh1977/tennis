@@ -1244,6 +1244,202 @@ copyResultsButton.addEventListener('click', async () => {
 document.getElementById('open-camera').addEventListener('click', openCamera);
 document.getElementById('close-camera').addEventListener('click', closeCamera);
 
+// ---------- Figure test (issue #5, stage 1) ----------
+// A white stick figure (the opponent, facing you across the net) serves on a
+// loop, always the same way. Only question for now: can you see it from 3 m?
+
+// Easy to tweak after an outdoor test.
+const FIGURE = {
+  size: 0.85,          // share of the screen height used, feet to the top of the toss
+  lineWidth: 0.05,     // line thickness, share of the figure's height (1 = top of head)
+  headSize: 0.075,     // head radius, same unit
+  ballSize: 0.04,      // ball radius, same unit
+  speed: 1,            // 1 = real serve speed, 0.5 = half speed
+  pauseSeconds: 1.5,   // extra time standing still in "ready" before the next serve
+};
+const FIGURE_TOP = 1.8;       // highest point drawn (the toss), in figure heights
+const RACKET_LENGTH = 0.38;   // a 69 cm racket for a 1.8 m player
+const GRAVITY = 9.81 / 1.8;   // in figure heights per second²
+
+// Saved poses. x = across the screen (+ = your right), y = up from the ground,
+// both in figure heights. The figure is right-handed, so facing you its
+// racket arm is on your left. "racket" = racket tip; "ball" = ball in the left hand.
+const POSES = {
+  ready: {
+    head: [0, 0.91], neck: [0, 0.83],
+    rShoulder: [-0.11, 0.80], rElbow: [-0.15, 0.63], rHand: [-0.08, 0.52], racket: [0.12, 0.82],
+    lShoulder: [0.11, 0.80], lElbow: [0.15, 0.63], lHand: [0.07, 0.56],
+    rHip: [-0.07, 0.50], rKnee: [-0.09, 0.27], rFoot: [-0.12, 0],
+    lHip: [0.07, 0.50], lKnee: [0.09, 0.27], lFoot: [0.12, 0],
+  },
+  toss: {      // left arm up, ball let go; racket swinging down and back
+    head: [0.01, 0.90], neck: [0, 0.82],
+    rShoulder: [-0.11, 0.78], rElbow: [-0.21, 0.65], rHand: [-0.28, 0.51], racket: [-0.45, 0.20],
+    lShoulder: [0.11, 0.80], lElbow: [0.13, 0.97], lHand: [0.14, 1.13],
+    rHip: [-0.07, 0.48], rKnee: [-0.11, 0.26], rFoot: [-0.12, 0],
+    lHip: [0.07, 0.48], lKnee: [0.11, 0.26], lFoot: [0.12, 0],
+  },
+  back: {      // "trophy": knees bent, racket up behind the head
+    head: [0.01, 0.85], neck: [0, 0.77],
+    rShoulder: [-0.11, 0.73], rElbow: [-0.27, 0.76], rHand: [-0.27, 0.92], racket: [-0.24, 1.30],
+    lShoulder: [0.11, 0.76], lElbow: [0.13, 0.91], lHand: [0.15, 1.07],
+    rHip: [-0.07, 0.44], rKnee: [-0.13, 0.24], rFoot: [-0.12, 0],
+    lHip: [0.07, 0.44], lKnee: [0.13, 0.24], lFoot: [0.12, 0],
+  },
+  drop: {      // racket drops behind the back, legs pushing up
+    head: [0.01, 0.88], neck: [0, 0.80],
+    rShoulder: [-0.11, 0.78], rElbow: [-0.21, 0.97], rHand: [-0.11, 0.90], racket: [-0.05, 0.53],
+    lShoulder: [0.11, 0.78], lElbow: [0.18, 0.72], lHand: [0.12, 0.62],
+    rHip: [-0.07, 0.48], rKnee: [-0.10, 0.26], rFoot: [-0.12, 0],
+    lHip: [0.07, 0.48], lKnee: [0.10, 0.26], lFoot: [0.12, 0],
+  },
+  hit: {       // fully stretched up, off the ground
+    head: [0.02, 0.97], neck: [0, 0.88],
+    rShoulder: [-0.10, 0.85], rElbow: [-0.12, 1.02], rHand: [-0.13, 1.18], racket: [-0.11, 1.56],
+    lShoulder: [0.11, 0.81], lElbow: [0.16, 0.68], lHand: [0.06, 0.62],
+    rHip: [-0.07, 0.54], rKnee: [-0.08, 0.31], rFoot: [-0.10, 0.04],
+    lHip: [0.07, 0.54], lKnee: [0.08, 0.31], lFoot: [0.10, 0.05],
+  },
+  finish: {    // racket down across the body, landed on the left foot
+    head: [0.03, 0.88], neck: [0.02, 0.81],
+    rShoulder: [-0.08, 0.78], rElbow: [0.02, 0.62], rHand: [0.14, 0.50], racket: [0.32, 0.18],
+    lShoulder: [0.12, 0.76], lElbow: [0.21, 0.70], lHand: [0.19, 0.60],
+    rHip: [-0.06, 0.50], rKnee: [-0.11, 0.29], rFoot: [-0.15, 0.07],
+    lHip: [0.08, 0.50], lKnee: [0.10, 0.27], lFoot: [0.09, 0],
+  },
+};
+
+// One serve: which pose to reach and when (seconds from the start).
+// Holding a pose = the same pose twice in a row.
+const SERVE_KEYS = [
+  ['ready', 0], ['ready', 1.0], ['toss', 1.6], ['back', 1.95],
+  ['drop', 2.15], ['hit', 2.27], ['finish', 2.72], ['finish', 3.3], ['ready', 4.1],
+];
+const TOSS_AT = 1.6;   // ball leaves the hand
+const HIT_AT = 2.27;   // ball meets the racket; hidden after that until stage 2
+
+const FIGURE_BONES = [
+  ['neck', 'rShoulder'], ['neck', 'lShoulder'], ['rShoulder', 'rElbow'], ['rElbow', 'rHand'],
+  ['lShoulder', 'lElbow'], ['lElbow', 'lHand'], ['rHip', 'lHip'],
+  ['rHip', 'rKnee'], ['rKnee', 'rFoot'], ['lHip', 'lKnee'], ['lKnee', 'lFoot'],
+];
+
+const figureScreen = document.getElementById('figure-screen');
+const figureCanvas = document.getElementById('figure-canvas');
+let figureRunning = false;
+let figureStart = 0;
+
+const lerp = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
+const smoothStep = k => k * k * (3 - 2 * k);   // starts and stops gently
+
+// The pose at time t (seconds into the serve), slid between the saved poses.
+function poseAt(t) {
+  let i = 0;
+  while (i < SERVE_KEYS.length - 2 && t >= SERVE_KEYS[i + 1][1]) i++;
+  const [fromName, fromTime] = SERVE_KEYS[i];
+  const [toName, toTime] = SERVE_KEYS[i + 1];
+  const k = smoothStep(Math.min(1, Math.max(0, (t - fromTime) / (toTime - fromTime))));
+  const pose = {};
+  for (const part in POSES[fromName]) pose[part] = lerp(POSES[fromName][part], POSES[toName][part], k);
+  return pose;
+}
+
+// Where the racket meets the ball: most of the way up the racket head.
+function contactPoint() {
+  return lerp(POSES.hit.rHand, POSES.hit.racket, 0.8);
+}
+
+// The ball: in the left hand, then a real toss (up and falling back) that
+// reaches the contact point exactly at the hit. Null = not drawn.
+function ballAt(t, pose) {
+  if (t >= HIT_AT) return null;
+  if (t < TOSS_AT) return [pose.lHand[0], pose.lHand[1] + FIGURE.ballSize];
+  const start = poseAt(TOSS_AT).lHand;
+  start[1] += FIGURE.ballSize;
+  const end = contactPoint();
+  const flight = HIT_AT - TOSS_AT;
+  const s = t - TOSS_AT;
+  const upSpeed = (end[1] - start[1] + GRAVITY * flight * flight / 2) / flight;
+  return [start[0] + (end[0] - start[0]) * s / flight,
+    start[1] + upSpeed * s - GRAVITY * s * s / 2];
+}
+
+function drawFigure(now) {
+  if (!figureRunning) return;
+  requestAnimationFrame(drawFigure);
+
+  const ratio = window.devicePixelRatio || 1;
+  const width = figureCanvas.clientWidth, height = figureCanvas.clientHeight;
+  if (figureCanvas.width !== Math.round(width * ratio)) figureCanvas.width = Math.round(width * ratio);
+  if (figureCanvas.height !== Math.round(height * ratio)) figureCanvas.height = Math.round(height * ratio);
+  const ctx = figureCanvas.getContext('2d');
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, width, height);
+
+  // Figure height in pixels, with the whole serve (up to the toss) on screen.
+  const unit = FIGURE.size * height / FIGURE_TOP;
+  const groundY = (height + FIGURE.size * height) / 2;
+  const at = ([x, y]) => [width / 2 + x * unit, groundY - y * unit];
+
+  const loop = SERVE_KEYS[SERVE_KEYS.length - 1][1] + FIGURE.pauseSeconds;
+  const t = ((now - figureStart) / 1000 * FIGURE.speed) % loop;
+  const pose = poseAt(t);
+
+  ctx.strokeStyle = ctx.fillStyle = '#fff';
+  ctx.lineWidth = FIGURE.lineWidth * unit;
+  ctx.lineCap = ctx.lineJoin = 'round';
+  const line = (a, b) => {
+    ctx.beginPath();
+    ctx.moveTo(...at(a));
+    ctx.lineTo(...at(b));
+    ctx.stroke();
+  };
+  const dot = (p, r) => {
+    ctx.beginPath();
+    ctx.arc(...at(p), r * unit, 0, 2 * Math.PI);
+    ctx.fill();
+  };
+
+  // Body: limbs, then the spine from the neck to between the hips, then the head.
+  for (const [a, b] of FIGURE_BONES) line(pose[a], pose[b]);
+  line(pose.neck, lerp(pose.rHip, pose.lHip, 0.5));
+  dot(pose.head, FIGURE.headSize);
+
+  // Racket: always full length, pointing from the hand toward the saved tip.
+  // The handle is a line, the head a filled oval (easier to see than strings).
+  const [hx, hy] = pose.rHand;
+  const angle = Math.atan2(pose.racket[1] - hy, pose.racket[0] - hx);
+  const along = d => [hx + Math.cos(angle) * d, hy + Math.sin(angle) * d];
+  line(pose.rHand, along(RACKET_LENGTH * 0.45));
+  const [cx, cy] = at(along(RACKET_LENGTH * 0.72));
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, RACKET_LENGTH * 0.28 * unit, RACKET_LENGTH * 0.19 * unit, -angle, 0, 2 * Math.PI);
+  ctx.fill();
+
+  const ball = ballAt(t, pose);
+  if (ball) dot(ball, FIGURE.ballSize);
+}
+
+function openFigure() {
+  homeScreen.hidden = true;
+  figureScreen.hidden = false;
+  keepAwake();
+  figureRunning = true;
+  figureStart = performance.now();
+  requestAnimationFrame(drawFigure);
+}
+
+function closeFigure() {
+  figureRunning = false;
+  allowSleep();
+  figureScreen.hidden = true;
+  homeScreen.hidden = false;
+}
+
+document.getElementById('open-figure').addEventListener('click', openFigure);
+document.getElementById('close-figure').addEventListener('click', closeFigure);
+
 // ---------- Start-up ----------
 loadSaved();
 showMode();

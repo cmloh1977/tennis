@@ -306,3 +306,8 @@ input[type="range"]::-webkit-slider-thumb {
 }
 #camera-readout:empty { display: none; }
 .screen.camera .end-button { background: #000; color: #fff; border-color: #fff; }
+
+/* ---------- Figure test ---------- */
+.screen.figure { padding: 0; }
+#figure-canvas { width: 100%; height: 100%; display: block; }
+.screen.figure .end-button { background: #000; color: #fff; border-color: #fff; }

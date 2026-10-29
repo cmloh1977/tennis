@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.7 — 2026-10-29
+
+### Figure test (issue #5, stage 1)
+- New **Figure test** button on Home. It opens a black screen where a big white stick figure (your opponent, facing you across the net) serves on a loop: ready → toss → racket back → hit → finish, then a short pause.
+- Same serve every time, no clues yet. It's only for checking from about 3 m in sunlight whether the figure is big, thick and clear enough, and whether the speed looks real.
+- The figure is right-handed, so its racket arm is on your left. The ball is tossed and disappears at the hit (the ball flying toward you comes in stage 2).
+- Size, line thickness, head and ball size, speed and the pause between serves are in `FIGURE` in `app.js`.
+
 ## v2.6 — 2026-10-28
 
 ### Bigger progress table on the rest screen

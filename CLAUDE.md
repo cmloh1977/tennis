@@ -2,7 +2,7 @@
 
 A web app for shadow-swing practice. It gives random cues so the player reacts instead of planning the next stroke. Used outdoors on a rooftop, with an iPhone or iPad placed a few metres in front of the player.
 
-Current version: **2.6** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
+Current version: **2.7** (see `CHANGELOG.md`). Live at **https://cmloh1977.github.io/tennis/**.
 
 ## Working style (important)
 
@@ -178,6 +178,14 @@ The last-used mode is remembered.
 - Results list: `resultsSummary()` on top ("x of y passed · average · best"), each entry starts with PASS / FAIL / Not judged and has a green / red edge. Copy results includes the summary.
 - The Tuning test is judged too (reps 1–4 should be green, 5–8 red).
 - **Rest screen progress (v2.5, table since v2.6):** `checkLog` entries keep `set` and `side`; `repStats()` gives right / wrong and average back-home times of the passes (overall, forehand cues, backhand cues, best). `rest()` shows `progressTable(setStats())` (Set ✓ ✗ Avg FH BH) in `#progress` under a small countdown (screen class `rest progress`, font sized in JS to fit up to 9 sets sideways) when the log has entries; the user wanted the numbers big and the countdown small. `setSummaries()` gives the same as text lines for the results list / Copy results (shown when there is more than one set).
+
+## Opponent figure (issue #5, v3)
+
+Built in 5 stages, each tested outdoors (phone ~3 m away, sunlight) before the next. See the issue for all stages.
+
+- **Stage 1, Figure test (v2.7):** Home button opens `#figure-screen`; `drawFigure()` draws a white stick figure on a `<canvas>` serving on a loop (ready → toss → racket back → drop → hit → finish), always the same. The opponent faces the player and is right-handed, so its racket arm is on the player's left.
+- Saved poses are in `POSES` (x across, y up, in figure heights; 1 = top of head); `SERVE_KEYS` says when each pose is reached; `poseAt()` slides between them (smoothstep). The toss is real gravity (`ballAt()`), landing on the racket at `HIT_AT`; the ball is hidden after the hit (flight comes in stage 2).
+- Size, line thickness, head / ball size, speed and pause are in `FIGURE` in `app.js`. `size` covers the whole serve up to the toss (`FIGURE_TOP` 1.8 figure heights), so the body itself is about half the screen height.
 
 ## Testing
 

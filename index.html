@@ -28,6 +28,7 @@
     <button id="open-settings" class="plain-button">Settings</button>
     <button id="open-camera" class="plain-button">Camera test</button>
     <button id="open-tuning" class="plain-button">Tuning test</button>
+    <button id="open-figure" class="plain-button">Figure test</button>
     <button id="open-results" class="plain-button" hidden>Last camera results</button>
     <details class="tips">
       <summary>iPhone tips</summary>
@@ -40,7 +41,7 @@
       </ul>
       <p id="awake-method"></p>
     </details>
-    <p class="version">Version 2.6</p>
+    <p class="version">Version 2.7</p>
   </main>
 
   <!-- Settings screen: the sliders are added by app.js -->
@@ -116,6 +117,12 @@
     <canvas id="camera-canvas"></canvas>
     <div id="camera-readout"></div>
     <button id="close-camera" class="end-button">Done</button>
+  </section>
+
+  <!-- Figure test: a white stick figure serves on a loop (issue #5, stage 1) -->
+  <section id="figure-screen" class="screen figure" hidden>
+    <canvas id="figure-canvas"></canvas>
+    <button id="close-figure" class="end-button">Done</button>
   </section>
 
   <script src="app.js"></script>
