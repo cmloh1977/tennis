@@ -1262,7 +1262,9 @@ const FIGURE = {
   answerSeconds: 1.5,  // how long the answer (triangles) shows
   wideBounce: 0.85,    // wide bounce: share of the way from the middle to the screen edge,
   wideBounceMax: 1.3,  //   but at most this many figure heights out (wide screens)
-  bodyBounce: 0.06,    // body bounce, figure heights from the middle
+  bodyBounce: 0.15,    // body bounce, figure heights from the middle
+  toBounceSeconds: 0.7,    // ball flight: hit to bounce (a real serve is about 0.4)
+  afterBounceSeconds: 0.6, //   bounce to leaving the screen (real: about 0.25)
 };
 const FIGURE_TOP = 1.8;       // highest point drawn (the toss), in figure heights
 const FIGURE_BOTTOM = 0.3;    // room below the feet for the bounce
@@ -1325,8 +1327,8 @@ const SERVE_KEYS = [
 ];
 const TOSS_AT = 1.6;      // ball leaves the hand
 const HIT_AT = 2.27;      // ball meets the racket
-const BOUNCE_AT = 2.69;   // ball bounces in front of you
-const GONE_AT = 2.92;     // ball has left the screen
+const BOUNCE_AT = HIT_AT + FIGURE.toBounceSeconds;        // ball bounces in front of you
+const GONE_AT = BOUNCE_AT + FIGURE.afterBounceSeconds;    // ball has left the screen
 
 const FIGURE_BONES = [
   ['neck', 'rShoulder'], ['neck', 'lShoulder'], ['rShoulder', 'rElbow'], ['rElbow', 'rHand'],
@@ -1394,7 +1396,7 @@ function ballAt(t, pose, shot, side, edges) {
   // Wide: out past the side of the screen. Body: out past the bottom, near the middle.
   const out = wide ? [side * (edges.side + outSize), 0.25] : [side * 0.35, edges.bottom - outSize];
   const k = (t - BOUNCE_AT) / (GONE_AT - BOUNCE_AT);
-  return { at: lerp(bounce, out, k * k), size: bounceSize + (outSize - bounceSize) * k };
+  return { at: lerp(bounce, out, k ** 1.5), size: bounceSize + (outSize - bounceSize) * k };
 }
 
 function drawFigure(now) {

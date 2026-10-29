@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.10 — 2026-10-29
+
+### Figure test: slower ball, body bounce a little wider
+- The ball now takes about **1.3 s** from the hit until it leaves the screen (was 0.65 s): 0.7 s to the bounce, 0.6 s after it. That's slower than a real serve, so you have time to swing and meet the ball as it leaves the screen.
+- Body serves bounce a little further from the middle, so you can tell a body forehand from a body backhand. Wide still bounces near the screen edge.
+
 ## v2.9 — 2026-10-29
 
 ### Figure test: wide and body bounces further apart
