@@ -38,7 +38,7 @@ const TIMING = {
 const SLIDERS = [
   { key: 'gapSeconds', label: 'Difficulty', min: 0.3, max: 1.2, step: 0.05,
     show: v => `${v.toFixed(2)} s from beep to cue`,
-    hint: 'Shorter = big first serve. Longer = second serve. Volley uses 60% of this.' },
+    hint: 'Shorter = big first serve. Longer = second serve. Volley uses 60% of this. Not used in Return with Opponent on (Ball time sets the pace).' },
   { key: 'rallyTempoSeconds', label: 'Rally tempo', min: 1.5, max: 4, step: 0.25,
     show: v => `about ${v.toFixed(2)} s between rally shots` },
   { key: 'backhandPercent', label: 'Forehand / backhand', min: 0, max: 100, step: 10,
@@ -56,7 +56,7 @@ const SLIDERS = [
     hint: 'Half of it shows the green / red card (at most 2 s), the rest is a short random wait.' },
   { key: 'ballSeconds', label: 'Ball time', min: 0.6, max: 2.5, step: 0.1,
     show: v => `${v.toFixed(1)} s from the opponent’s hit to the ball leaving the screen`,
-    hint: 'Figure test. A real serve takes about 0.65 s. Longer = time to swing and meet the ball as it leaves the screen.' },
+    hint: 'Figure test, and Return with Opponent on. A real serve takes about 0.65 s. Longer = time to swing and meet the ball as it leaves the screen.' },
   { key: 'syncOffsetMs', label: 'Sound / screen sync', min: -150, max: 150, step: 10,
     show: v => (v === 0 ? 'no adjustment'
       : v > 0 ? `screen ${v} ms later` : `voice ${-v} ms later`),
@@ -143,6 +143,30 @@ function playTone(frequency, seconds) {
 function beep() { playTone(1000, 0.12); }
 function tick() { playTone(2000, 0.04); }
 
+// The opponent's racket hitting the ball: a short knock that drops in pitch.
+// Starts delaySeconds from now.
+function pock(delaySeconds = 0) {
+  const at = audio.currentTime + Math.max(0, delaySeconds);
+  const osc = audio.createOscillator();
+  const volume = audio.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(1100, at);
+  osc.frequency.exponentialRampToValueAtTime(450, at + 0.05);
+  volume.gain.setValueAtTime(0.0001, at);
+  volume.gain.exponentialRampToValueAtTime(1, at + 0.002);
+  volume.gain.exponentialRampToValueAtTime(0.0001, at + 0.08);
+  osc.connect(volume).connect(audio.destination);
+  osc.start(at);
+  osc.stop(at + 0.1);
+}
+
+// How long a sound takes to reach the ear after it starts (as the phone
+// reports it), plus the user's sync fine-tune: the screen is held back, or a
+// sound started early, by this much so the two arrive together.
+function soundLeadMs() {
+  return (audio.outputLatency || audio.baseLatency || 0) * 1000 + settings.syncOffsetMs;
+}
+
 // ---------- Keep the screen awake ----------
 // First choice: the browser's "wake lock" feature. Backup, for browsers
 // without it: a tiny silent video playing on a muted loop, which also stops
@@ -222,9 +246,7 @@ let cueShownAt = 0;
 // With the voice off the screen is still held back, because the beep reaches
 // the ear late by the same amount: this keeps the beep-to-cue gap as set.
 function showCue(shot) {
-  const pointsRight = (shot.side === 'forehand') === (settings.handedness === 'right');
-  const speakerDelayMs = ((audio.outputLatency || audio.baseLatency || 0) * 1000);
-  const screenDelayMs = speakerDelayMs + settings.syncOffsetMs;
+  const screenDelayMs = soundLeadMs();
 
   if (settings.voice) {
     const voice = audio.createBufferSource();
@@ -235,13 +257,19 @@ function showCue(shot) {
   }
 
   const paint = () => {
-    arrow.classList.toggle('left', !pointsRight);
-    arrow.classList.toggle('wide', shot.placement === 'wide');
-    showScreen(shot.side);
+    showArrow(shot);
     cueShownAt = performance.now();
   };
   if (screenDelayMs > 0) setTimeout(paint, screenDelayMs);
   else paint();
+}
+
+// The triangles and white frame for this shot (a cue, or the answer).
+function showArrow(shot) {
+  const pointsRight = (shot.side === 'forehand') === (settings.handedness === 'right');
+  arrow.classList.toggle('left', !pointsRight);
+  arrow.classList.toggle('wide', shot.placement === 'wide');
+  showScreen(shot.side);
 }
 
 // ---------- Running a session ----------
@@ -259,9 +287,9 @@ function waitExactly(seconds) {
 
 // Neutral screen, random wait, beep, gap, cue. Used by all three modes and
 // the Tuning test (which passes its own shot). With opponent, the stick
-// figure stands ready during the wait, then serves this shot, and its hit
-// replaces the beep. Returns the shot that was cued (nothing if the session
-// was ended).
+// figure stands ready during the wait, then serves this shot; its hit (with
+// a pock) replaces the beep, and there is no gap or cue. Returns the shot
+// that was cued or served (nothing if the session was ended).
 async function serveRep(run, gapSeconds, fixedShot = null, opponent = false) {
   const shot = fixedShot || pickShot();
   showScreen(opponent ? 'neutral opponent' : 'neutral');
@@ -276,21 +304,39 @@ async function serveRep(run, gapSeconds, fixedShot = null, opponent = false) {
   await wait(randomBetween(minWait, maxWait));
   if (run.stopped) return;
 
-  if (opponent) await opponentServes();   // split-step trigger: the figure's hit
-  else beep();                           // split-step trigger
-  if (run.stopped) return;
+  if (opponent) {
+    await opponentServes();              // split-step trigger: the figure's hit
+    return run.stopped ? undefined : shot;
+  }
+  beep();                                // split-step trigger
   await waitExactly(gapSeconds);
   if (run.stopped) return;
 
-  hideOpponent();
   showCue(shot);
   return shot;
 }
 
 async function returnRep(run) {
-  const shot = await serveRep(run, settings.gapSeconds, null, settings.opponent);
+  if (settings.opponent) return opponentRep(run);
+  const shot = await serveRep(run, settings.gapSeconds);
   await wait(TIMING.cueSeconds);
   await showCheck(run, shot);
+}
+
+// Opponent on: read the serve from the figure and the ball, no cue. After
+// the ball has gone: the Camera check card, or else the answer (triangles).
+async function opponentRep(run) {
+  const shot = await serveRep(run, null, null, true);
+  if (!shot) return;
+  await waitExactly(settings.ballSeconds / FIGURE.speed);
+  hideOpponent();
+  if (run.stopped) return;
+  if (cameraUse === 'session') {
+    await showCheck(run, shot);
+    return;
+  }
+  showArrow(shot);
+  await wait(TIMING.cueSeconds);
 }
 
 async function volleyRep(run) {
@@ -1618,7 +1664,7 @@ document.getElementById('close-figure').addEventListener('click', closeFigure);
 
 // Return mode with the Opponent setting on: the figure stands ready on the
 // session screen during the wait, then serves; its hit is the split-step
-// trigger (stage 3). The triangles still come after the Difficulty gap.
+// trigger (stage 3). No cue during the rep: the ball shows where it goes.
 const sessionFigure = document.getElementById('session-figure');
 let opponent = null;   // { shot, start } while the figure is on the session screen
 
@@ -1635,9 +1681,15 @@ function drawOpponent(now) {
 }
 
 // Starts the serve (from the toss) and resolves at the moment of the hit.
-function opponentServes() {
+// The pock is started early by the speaker delay, so it's heard as the racket
+// meets the ball. The Camera check times the player from the hit.
+async function opponentServes() {
+  const toHit = (HIT_AT - TOSS_START) / FIGURE.speed;
   opponent.start = performance.now() - TOSS_START * 1000 / FIGURE.speed;
-  return waitExactly((HIT_AT - TOSS_START) / FIGURE.speed);
+  pock(toHit - soundLeadMs() / 1000);
+  await waitExactly(toHit);
+  // The hit as drawn (the timer above may run a little late).
+  cueShownAt = opponent ? opponent.start + HIT_AT * 1000 / FIGURE.speed : performance.now();
 }
 
 function hideOpponent() {

@@ -8,7 +8,7 @@
 //
 // Change VERSION with every release (the same number as on the Home screen),
 // or phones won't notice the update.
-const VERSION = '2.15';
+const VERSION = '2.16';
 const CACHE = `tennis-trainer-${VERSION}`;
 const FILES = [
   './',

@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.16 — 2026-10-30
+
+### Opponent: a pock at the hit, no triangles during the rep
+- With **Opponent** on (Return mode), you now hear a short **"pock"** exactly when the figure's racket meets the ball: the split-step moment.
+- **No triangles or voice during the rep.** Read the serve from the figure and the ball, then move.
+- After the ball has left the screen: **with Camera check**, the green / red card as before, but your time now counts **from the hit**; **without Camera check**, the triangles show briefly as the answer.
+- With Opponent on, **Difficulty** isn't used; **Ball time** sets the pace. The Settings hints say so.
+
 ## v2.15 — 2026-10-30
 
 ### Opponent in Return mode (issue #5, stage 3)
